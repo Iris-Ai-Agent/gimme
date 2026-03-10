@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+@theme {
+  --color-masters-green: #006747;
+  --color-masters-dark: #004D35;
+  --color-gold: #C4A962;
+  --color-gold-light: #D4BE82;
+  --color-birdie-red: #C41E3A;
+  --color-fairway: #F5F5F0;
+  --color-rough: #E8E8E0;
+  --color-bunker: #D4D0C8;
+  --color-night: #1A1A2E;
+  --color-night-card: #242440;
+  --color-night-border: #2E2E4A;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: var(--color-fairway);
+    color: #1a1a1a;
+    min-height: 100dvh;
+    margin: 0;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    body {
+      background-color: var(--color-night);
+      color: #e8e8e0;
+    }
+  }
+}
+
+@layer utilities {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .tap-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
