@@ -10,20 +10,28 @@ export const PlayerTabs = React.memo(function PlayerTabs({ players, currentPlaye
   if (players.length === 0) return null
 
   return (
-    <div className="flex gap-2 mb-2">
-      {players.map((p, idx) => (
-        <button
-          key={p.id}
-          onClick={() => onSelectPlayer(idx)}
-          className={`flex-1 py-2 rounded-xl text-sm font-medium tap-target transition-colors ${
-            idx === currentPlayerIdx
-              ? 'bg-masters-green text-white'
-              : 'bg-rough dark:bg-night-border'
-          }`}
-        >
-          {p.display_name}
-        </button>
-      ))}
+    <div className="flex gap-1 mb-2">
+      {players.map((p, idx) => {
+        const isActive = idx === currentPlayerIdx
+        return (
+          <button
+            key={p.id}
+            onClick={() => onSelectPlayer(idx)}
+            className="flex-1 flex items-center justify-center tap-target transition-colors"
+            style={{
+              padding: '10px 8px',
+              borderBottom: isActive ? '3px solid #C4A962' : '3px solid transparent',
+            }}
+          >
+            <span
+              className="text-sm truncate"
+              style={{ fontWeight: isActive ? 700 : 400, color: isActive ? '#2D4A3E' : '#8A8578' }}
+            >
+              {p.display_name}
+            </span>
+          </button>
+        )
+      })}
     </div>
   )
 })

@@ -166,18 +166,19 @@ export interface Database {
       }
     }
     Views: {
-      [key: string]: {
-        Row: Record<string, unknown>
-        Insert: Record<string, unknown>
-        Update: Record<string, unknown>
-        Relationships: Rel[]
-      }
+      [_ in never]: never
     }
     Functions: {
-      [key: string]: {
-        Args: Record<string, unknown>
-        Returns: unknown
+      join_round_by_invite_code: {
+        Args: { code: string }
+        Returns: string
       }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
     }
   }
 }

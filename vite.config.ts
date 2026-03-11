@@ -11,9 +11,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'Gimme — Golf Side Games',
-        short_name: 'Gimme',
-        description: 'Score golf side games and settle up with your crew',
+        name: 'Bogey Bookie',
+        short_name: 'Bogey Bookie',
+        description: 'Your golf bets, settled — score side games and settle up with your crew',
         theme_color: '#006747',
         background_color: '#F5F5F0',
         display: 'standalone',

@@ -15,7 +15,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ inputSize = 'md', className = '', ...props }, ref) => (
     <input
       ref={ref}
-      className={`w-full rounded-xl border border-rough dark:border-night-border bg-white dark:bg-night-card focus:outline-none focus:ring-2 focus:ring-masters-green/50 transition-shadow ${sizeStyles[inputSize]} ${className}`}
+      className={`w-full rounded-xl border border-[#E8E3DA] bg-white focus:outline-none focus:border-[#2D4A3E] text-[#2D4A3E] placeholder:text-[#8A8578]/50 transition-all ${sizeStyles[inputSize]} ${className}`}
       {...props}
     />
   ),

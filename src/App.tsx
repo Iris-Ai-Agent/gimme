@@ -51,12 +51,12 @@ function App() {
           <Route path="/round/join" element={<JoinRoundPage />} />
           <Route path="/round/:roundId" element={<RoundPage />} />
           <Route path="*" element={
-            <div className="min-h-screen bg-fairway dark:bg-night flex items-center justify-center p-6">
+            <div className="min-h-dvh flex items-center justify-center p-6" style={{ backgroundColor: '#F5F0E8' }}>
               <div className="text-center">
                 <p className="text-6xl mb-4">⛳</p>
-                <h1 className="text-2xl font-bold text-white mb-2">Lost in the Rough</h1>
-                <p className="text-gray-400 mb-6">This hole doesn't exist.</p>
-                <a href="/" className="text-gold hover:text-gold-text font-medium">Back to the Clubhouse</a>
+                <h1 className="text-2xl font-bold mb-2" style={{ color: '#2D4A3E' }}>Lost in the Rough</h1>
+                <p className="mb-6" style={{ color: '#2D4A3E', opacity: 0.5 }}>This hole doesn't exist.</p>
+                <a href="/" className="font-medium" style={{ color: '#C4A962' }}>Back to the Clubhouse</a>
               </div>
             </div>
           } />

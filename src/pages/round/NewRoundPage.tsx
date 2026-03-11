@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BackButton } from '@/components/ui/BackButton'
-import { Button } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Spinner } from '@/components/ui/Spinner'
 import { toast } from '@/components/ui/Toast'
+import { shareInvite } from '@/lib/share'
 import { getErrorMessage } from '@/lib/utils'
 import { useAuth } from '@/stores/auth'
 import { useRound } from '@/stores/round'
@@ -25,13 +24,13 @@ export function NewRoundPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { createRound } = useRound()
-  const [step, setStep] = useState<'course' | 'games'>('course')
   const [courseName, setCourseName] = useState('')
   const [holes, setHoles] = useState(18)
   const [selectedGames, setSelectedGames] = useState<Set<GameFormat>>(new Set())
   const [skinValue, setSkinValue] = useState(5)
   const [nassauBet, setNassauBet] = useState(5)
   const [creating, setCreating] = useState(false)
+  const [createdRound, setCreatedRound] = useState<{ id: string; inviteCode: string } | null>(null)
   const courseNameError = courseName.length > 0 && courseName.trim().length === 0
     ? 'Course name cannot be blank'
     : courseName.trim().length > 100
@@ -75,8 +74,8 @@ export function NewRoundPage() {
         games: gameDefs,
       })
 
-      toast('success', 'Round created! Share the invite code.')
-      navigate(`/round/${roundId}`)
+      const { currentRound } = useRound.getState()
+      setCreatedRound({ id: roundId, inviteCode: currentRound?.invite_code || '' })
     } catch (err) {
       toast('error', getErrorMessage(err, 'Failed to create round'))
     } finally {
@@ -84,26 +83,70 @@ export function NewRoundPage() {
     }
   }
 
+  if (createdRound) {
+    return (
+      <div className="min-h-dvh" style={{ backgroundColor: '#F5F0E8' }}>
+        <div className="max-w-md mx-auto min-h-dvh shadow-lg flex flex-col animate-fade-in" style={{ backgroundColor: '#F5F0E8' }}>
+          <div className="w-full px-4 py-4 flex items-center gap-3" style={{ backgroundColor: '#2D4A3E' }}>
+            <h1 className="text-lg font-bold text-[#F5F0E8] italic">Bogey Bookie</h1>
+          </div>
+
+          <div className="flex-1 flex flex-col items-center justify-center px-6 space-y-8">
+            <div className="text-center space-y-2">
+              <p className="text-5xl">⛳</p>
+              <h2 className="text-2xl font-bold" style={{ color: '#2D4A3E' }}>Match Created!</h2>
+              <p className="text-sm" style={{ color: '#2D4A3E', opacity: 0.6 }}>
+                Share the code below to invite players
+              </p>
+            </div>
+
+            <div className="w-full bg-white rounded-2xl p-6 border text-center space-y-4" style={{ borderColor: '#E8E3DA' }}>
+              <p className="text-xs font-bold uppercase tracking-widest" style={{ color: '#2D4A3E', opacity: 0.5 }}>Invite Code</p>
+              <p className="text-4xl font-mono font-bold tracking-[0.3em]" style={{ color: '#2D4A3E' }}>
+                {createdRound.inviteCode}
+              </p>
+              <button
+                onClick={() => shareInvite(createdRound.inviteCode, 'round')}
+                className="w-full py-3 rounded-xl font-bold transition-all active:scale-[0.98] tap-target"
+                style={{ backgroundColor: '#C4A962', color: '#2D4A3E' }}
+              >
+                Share Invite Link
+              </button>
+            </div>
+
+            <button
+              onClick={() => navigate(`/round/${createdRound.id}`)}
+              className="w-full py-3.5 rounded-xl font-bold transition-all active:scale-[0.98] tap-target"
+              style={{ backgroundColor: '#2D4A3E', color: '#F5F0E8' }}
+            >
+              Start Playing
+            </button>
+
+            <p className="text-xs text-center" style={{ color: '#2D4A3E', opacity: 0.4 }}>
+              Players can join anytime during the round
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="px-4 pt-6 pb-4 max-w-lg mx-auto space-y-6 animate-fade-in safe-top">
-      <div className="flex items-center gap-3">
+    <div className="min-h-dvh" style={{ backgroundColor: '#F5F0E8' }}>
+    <div className="max-w-md mx-auto min-h-dvh shadow-lg flex flex-col animate-fade-in" style={{ backgroundColor: '#F5F0E8' }}>
+      {/* Green header bar */}
+      <div className="w-full px-4 py-4 flex items-center gap-3" style={{ backgroundColor: '#2D4A3E' }}>
         <BackButton />
-        <h1 className="text-xl font-bold">New Round</h1>
+        <h1 className="text-lg font-bold text-[#F5F0E8] italic">Bogey Bookie</h1>
       </div>
 
-      {/* Progress bar */}
-      <div className="flex gap-1">
-        {['course', 'games'].map((s, i) => (
-          <div key={s} className={`flex-1 h-1.5 rounded-full transition-colors duration-300 ${
-            (['course', 'games'].indexOf(step) >= i) ? 'bg-masters-green' : 'bg-rough dark:bg-night-border'
-          }`} />
-        ))}
-      </div>
+      <div className="px-4 pt-6 pb-4 w-full space-y-6">
+        <h2 className="text-2xl font-bold" style={{ color: '#2D4A3E' }}>New Match</h2>
 
-      {step === 'course' && (
-        <div className="space-y-4 animate-fade-in">
+        <div className="space-y-5 animate-fade-in">
+          {/* Course Name */}
           <div>
-            <label className="block text-sm font-medium mb-1">Course Name</label>
+            <label className="block text-xs font-bold uppercase tracking-wide mb-1" style={{ color: '#2D4A3E' }}>Course Name</label>
             <Input
               value={courseName}
               onChange={(e) => setCourseName(e.target.value)}
@@ -114,18 +157,20 @@ export function NewRoundPage() {
             {courseNameError && <p className="text-birdie-red text-xs mt-1">{courseNameError}</p>}
           </div>
 
+          {/* Holes */}
           <div>
-            <label className="block text-sm font-medium mb-2">Holes</label>
+            <label className="block text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#2D4A3E' }}>Holes</label>
             <div className="flex gap-3">
               {[9, 18].map((h) => (
                 <button
                   key={h}
                   onClick={() => setHoles(h)}
-                  className={`flex-1 py-3 rounded-xl font-semibold tap-target border-2 transition-all ${
-                    holes === h
-                      ? 'border-masters-green bg-masters-green/10 text-masters-green'
-                      : 'border-rough dark:border-night-border hover:border-masters-green/30'
-                  }`}
+                  className="flex-1 py-3 rounded-xl font-semibold tap-target transition-all"
+                  style={{
+                    border: `1px solid ${holes === h ? '#2D4A3E' : '#E8E3DA'}`,
+                    backgroundColor: holes === h ? '#2D4A3E' : '#FFFFFF',
+                    color: holes === h ? '#F5F0E8' : '#2D4A3E',
+                  }}
                 >
                   {h} Holes
                 </button>
@@ -133,110 +178,112 @@ export function NewRoundPage() {
             </div>
           </div>
 
-          <Button fullWidth onClick={() => setStep('games')} disabled={!courseName.trim() || !!courseNameError}>
-            Next: Pick Games
-          </Button>
-        </div>
-      )}
-
-      {step === 'games' && (
-        <div className="space-y-4 animate-fade-in">
-          <div className="space-y-3">
-            {GAME_OPTIONS.map((game) => (
-              <Card
-                key={game.format}
-                className={`cursor-pointer transition-all ${
-                  selectedGames.has(game.format) ? 'border-masters-green ring-1 ring-masters-green/30' : 'hover:border-masters-green/30'
-                }`}
-                onClick={() => toggleGame(game.format)}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">{game.emoji}</span>
-                  <div className="flex-1">
-                    <div className="font-semibold">{game.name}</div>
-                    <div className="text-sm text-gray-500">{game.desc}</div>
+          {/* Game Type */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#2D4A3E' }}>Game</label>
+            <div className="flex flex-col gap-2">
+              {GAME_OPTIONS.map((game) => (
+                <button
+                  key={game.format}
+                  onClick={() => toggleGame(game.format)}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all
+                    active:scale-[0.97] tap-target"
+                  style={{
+                    border: `1px solid ${selectedGames.has(game.format) ? '#2D4A3E' : '#E8E3DA'}`,
+                    backgroundColor: selectedGames.has(game.format) ? '#2D4A3E' : '#FFFFFF',
+                  }}
+                >
+                  <span className="text-xl">{game.emoji}</span>
+                  <div>
+                    <p className="font-semibold text-sm" style={{ color: selectedGames.has(game.format) ? '#F5F0E8' : '#2D4A3E' }}>{game.name}</p>
+                    <p className="text-xs mt-0.5" style={{ color: selectedGames.has(game.format) ? '#F5F0E8' : '#2D4A3E', opacity: selectedGames.has(game.format) ? 0.7 : 0.5 }}>{game.desc}</p>
                   </div>
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
-                    selectedGames.has(game.format)
-                      ? 'border-masters-green bg-masters-green text-white'
-                      : 'border-gray-300'
-                  }`}>
-                    {selectedGames.has(game.format) && (
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Wager */}
+          {selectedGames.size > 0 && (
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#2D4A3E' }}>WAGER</label>
+
+              {selectedGames.has('skins') && (
+                <div className="mb-3">
+                  <p className="text-xs font-medium mb-1.5" style={{ color: '#2D4A3E', opacity: 0.7 }}>Skin Value ($)</p>
+                  <div className="flex gap-2">
+                    {[1, 2, 5, 10, 20].map((v) => (
+                      <button
+                        key={v}
+                        onClick={() => setSkinValue(v)}
+                        className="flex-1 py-2 rounded-lg font-medium text-sm tap-target transition-colors"
+                        style={{
+                          backgroundColor: skinValue === v ? '#2D4A3E' : '#2D4A3E10',
+                          color: skinValue === v ? '#F5F0E8' : '#2D4A3E',
+                        }}
+                      >
+                        ${v}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              </Card>
-            ))}
-          </div>
-
-          {selectedGames.has('skins') && (
-            <Card>
-              <label className="block text-sm font-medium mb-2">Skin Value ($)</label>
-              <div className="flex gap-2">
-                {[1, 2, 5, 10, 20].map((v) => (
-                  <button
-                    key={v}
-                    onClick={() => setSkinValue(v)}
-                    className={`flex-1 py-2 rounded-lg font-medium text-sm tap-target transition-colors ${
-                      skinValue === v ? 'bg-masters-green text-white' : 'bg-rough dark:bg-night-border'
-                    }`}
-                  >
-                    ${v}
-                  </button>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          {selectedGames.has('nassau') && (
-            <Card>
-              <label className="block text-sm font-medium mb-2">Nassau Bet ($)</label>
-              <div className="flex gap-2">
-                {[2, 5, 10, 20, 50].map((v) => (
-                  <button
-                    key={v}
-                    onClick={() => setNassauBet(v)}
-                    className={`flex-1 py-2 rounded-lg font-medium text-sm tap-target transition-colors ${
-                      nassauBet === v ? 'bg-masters-green text-white' : 'bg-rough dark:bg-night-border'
-                    }`}
-                  >
-                    ${v}
-                  </button>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          <div className="flex gap-3">
-            <Button variant="ghost" onClick={() => setStep('course')} className="flex-1">
-              Back
-            </Button>
-            <Button
-              onClick={handleStart}
-              disabled={selectedGames.size === 0 || creating}
-              className="flex-1"
-            >
-              {creating ? (
-                <span className="flex items-center gap-2">
-                  <Spinner />
-                  Creating...
-                </span>
-              ) : (
-                'Start Round'
               )}
-            </Button>
+
+              {selectedGames.has('nassau') && (
+                <div className="mb-3">
+                  <p className="text-xs font-medium mb-1.5" style={{ color: '#2D4A3E', opacity: 0.7 }}>Nassau Bet ($)</p>
+                  <div className="flex gap-2">
+                    {[2, 5, 10, 20, 50].map((v) => (
+                      <button
+                        key={v}
+                        onClick={() => setNassauBet(v)}
+                        className="flex-1 py-2 rounded-lg font-medium text-sm tap-target transition-colors"
+                        style={{
+                          backgroundColor: nassauBet === v ? '#2D4A3E' : '#2D4A3E10',
+                          color: nassauBet === v ? '#F5F0E8' : '#2D4A3E',
+                        }}
+                      >
+                        ${v}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Players placeholder */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#2D4A3E' }}>Players</label>
+            <p className="text-sm" style={{ color: '#2D4A3E', opacity: 0.5 }}>Invite players after creating the game.</p>
           </div>
+
+          {/* NEXT button */}
+          <button
+            onClick={handleStart}
+            disabled={!courseName.trim() || !!courseNameError || selectedGames.size === 0 || creating}
+            className="w-full py-3.5 rounded-xl font-bold disabled:opacity-50
+              transition-all active:scale-[0.98] tap-target"
+            style={{ backgroundColor: '#2D4A3E', color: '#F5F0E8' }}
+          >
+            {creating ? (
+              <span className="flex items-center justify-center gap-2">
+                <Spinner />
+                Creating...
+              </span>
+            ) : (
+              'Next'
+            )}
+          </button>
 
           {!user && (
-            <p className="text-xs text-center text-gray-500">
+            <p className="text-xs text-center" style={{ color: '#2D4A3E', opacity: 0.5 }}>
               Not signed in — you'll be taken to the demo round.
             </p>
           )}
         </div>
-      )}
+      </div>
+    </div>
     </div>
   )
 }

@@ -4,9 +4,9 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
 type Size = 'sm' | 'md' | 'lg'
 
 const variantStyles: Record<Variant, string> = {
-  primary: 'bg-masters-green text-white hover:bg-masters-dark active:bg-[#003D2A]',
-  secondary: 'bg-gold text-night hover:bg-gold-light active:bg-[#B09850]',
-  ghost: 'bg-transparent text-masters-green hover:bg-rough dark:text-gold dark:hover:bg-night-border',
+  primary: 'bg-masters-green text-cream hover:bg-masters-dark active:bg-masters-dark',
+  secondary: 'bg-gold text-masters-green hover:bg-gold-light active:bg-gold-light',
+  ghost: 'bg-transparent text-masters-green border border-masters-green hover:bg-masters-green/5',
   danger: 'bg-birdie-red text-white hover:bg-red-700 active:bg-red-800',
 }
 

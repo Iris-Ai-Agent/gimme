@@ -8,7 +8,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase env vars not set — running in demo mode')
 }
 
-export const supabase = createClient<Database>(
+const _supabase = createClient<Database>(
   supabaseUrl || 'https://placeholder.supabase.co',
   supabaseAnonKey || 'placeholder',
 )
+
+export const supabase = _supabase
+export const db = _supabase as any

@@ -63,9 +63,9 @@ export function ConfirmDialog({
   return (
     <div ref={dialogRef} className="fixed inset-0 z-[200] flex items-end justify-center" role="dialog" aria-modal="true" aria-labelledby="confirm-title" onKeyDown={handleKeyDown}>
       <div className="absolute inset-0 bg-black/50 animate-fade-in" onClick={onCancel} aria-hidden="true" />
-      <div className="relative w-full max-w-lg bg-white dark:bg-night-card rounded-t-2xl p-6 space-y-4 animate-slide-up safe-bottom">
-        <h2 id="confirm-title" className="text-lg font-bold">{title}</h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>
+      <div className="relative w-full max-w-lg bg-cream rounded-t-2xl p-6 space-y-4 animate-slide-up safe-bottom">
+        <h2 id="confirm-title" className="text-lg font-bold text-masters-green">{title}</h2>
+        <p className="text-sm text-text-secondary">{description}</p>
         <div className="flex gap-3 pt-2">
           <Button ref={cancelRef} variant="ghost" onClick={onCancel} className="flex-1">Cancel</Button>
           <Button ref={confirmRef} variant={confirmVariant} onClick={onConfirm} className="flex-1">{confirmText}</Button>

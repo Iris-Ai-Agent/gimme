@@ -59,8 +59,8 @@ export function ToastContainer() {
             pointer-events-auto px-4 py-3 rounded-xl shadow-lg text-sm font-medium
             max-w-sm w-full animate-slide-down cursor-pointer
             ${msg.type === 'error' ? 'bg-birdie-red text-white' : ''}
-            ${msg.type === 'success' ? 'bg-masters-green text-white' : ''}
-            ${msg.type === 'info' ? 'bg-night-card text-white' : ''}
+            ${msg.type === 'success' ? 'bg-masters-green text-cream' : ''}
+            ${msg.type === 'info' ? 'bg-masters-dark text-cream' : ''}
           `}
         >
           {msg.text}

@@ -1,4 +1,5 @@
 import type { Score } from '@/types/database'
+import { indexScoresByPlayerAndHole } from './index-scores'
 
 export interface NassauConfig {
   frontBet: number
@@ -68,15 +69,7 @@ export function calculateNassau(
   const back: MatchState = { scores: new Map() }
   const overall: MatchState = { scores: new Map() }
 
-  // Pre-index scores: player -> hole -> Score for O(1) lookups
-  const indexed = new Map<string, Map<number, Score>>()
-  scores.forEach((playerScores, playerId) => {
-    const holeMap = new Map<number, Score>()
-    for (const s of playerScores) {
-      holeMap.set(s.hole_number, s)
-    }
-    indexed.set(playerId, holeMap)
-  })
+  const indexed = indexScoresByPlayerAndHole(scores)
 
   scores.forEach((_, pid) => {
     front.scores.set(pid, 0)

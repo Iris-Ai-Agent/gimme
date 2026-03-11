@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { supabase } from '@/lib/supabase'
+import { supabase, db } from '@/lib/supabase'
 import { getErrorMessage } from '@/lib/utils'
 import { toast } from '@/components/ui/Toast'
 import { getPendingScores, addPendingScore, removePendingScore } from '@/lib/offline-queue'
@@ -51,8 +51,10 @@ export const useRound = create<RoundState>((set, get) => ({
       const user = useAuth.getState().user
       if (!user) throw new Error('You must be signed in to create a round')
 
+
+
       // 1. Create course
-      const { data: course, error: courseErr } = await supabase
+      const { data: course, error: courseErr } = await db
         .from('courses')
         .insert({ name: courseName, holes: pars.length, par: pars, created_by: user.id })
         .select()
@@ -60,12 +62,12 @@ export const useRound = create<RoundState>((set, get) => ({
       if (courseErr || !course) throw new Error(courseErr?.message || 'Failed to create course')
 
       // 2. Create round
-      const { data: round, error: roundErr } = await supabase
+      const { data: round, error: roundErr } = await db
         .from('rounds')
         .insert({
           course_id: course.id,
           created_by: user.id,
-          status: 'active' as const,
+          status: 'active',
           started_at: new Date().toISOString(),
         })
         .select()
@@ -74,15 +76,15 @@ export const useRound = create<RoundState>((set, get) => ({
 
       // 3. Add creator as player, games, and fetch profile in parallel
       const [rpRes, , profileRes] = await Promise.all([
-        supabase
+        db
           .from('round_players')
           .insert({ round_id: round.id, profile_id: user.id }),
         gameDefs.length > 0
-          ? supabase.from('games').insert(
-              gameDefs.map(g => ({ round_id: round.id, format: g.format, config: g.config, status: 'active' as const }))
+          ? db.from('games').insert(
+              gameDefs.map((g: any) => ({ round_id: round.id, format: g.format, config: g.config, status: 'active' }))
             )
           : Promise.resolve({ error: null }),
-        supabase
+        db
           .from('profiles')
           .select('*')
           .eq('id', user.id)
@@ -116,7 +118,7 @@ export const useRound = create<RoundState>((set, get) => ({
       const user = useAuth.getState().user
       if (!user) throw new Error('You must be signed in to join a round')
 
-      const { data: roundId, error: rpcErr } = await supabase
+      const { data: roundId, error: rpcErr } = await (db)
         .rpc('join_round_by_invite_code', { code: inviteCode.trim().toLowerCase() })
       if (rpcErr || !roundId) throw new Error(rpcErr?.message || 'Round not found. Check the invite code.')
 
@@ -132,17 +134,18 @@ export const useRound = create<RoundState>((set, get) => ({
   loadRound: async (roundId) => {
     set({ loading: true, error: null })
     try {
+
       const [roundRes, playersRes, scoresRes, gamesRes] = await Promise.all([
-        supabase.from('rounds').select('*, courses(*)').eq('id', roundId).single(),
-        supabase.from('round_players').select('round_id, profile_id, tee_set, handicap_at_time').eq('round_id', roundId),
-        supabase.from('scores').select('id, round_id, profile_id, hole_number, strokes, updated_at').eq('round_id', roundId),
-        supabase.from('games').select('id, round_id, format, config, status').eq('round_id', roundId),
+        db.from('rounds').select('*, courses(*)').eq('id', roundId).single(),
+        db.from('round_players').select('round_id, profile_id, tee_set, handicap_at_time').eq('round_id', roundId),
+        db.from('scores').select('id, round_id, profile_id, hole_number, strokes, updated_at').eq('round_id', roundId),
+        db.from('games').select('id, round_id, format, config, status').eq('round_id', roundId),
       ])
 
       if (roundRes.error) throw new Error(roundRes.error.message)
 
       const scoreMap = new Map<string, Score[]>()
-      scoresRes.data?.forEach((s) => {
+      scoresRes.data?.forEach((s: any) => {
         const existing = scoreMap.get(s.profile_id) || []
         existing.push(s)
         scoreMap.set(s.profile_id, existing)
@@ -152,15 +155,15 @@ export const useRound = create<RoundState>((set, get) => ({
       const { courses: inlineCourse, ...roundData } = roundRes.data as (Round & { courses: Course | null })
       const course = inlineCourse || null
 
-      const playerIds = (playersRes.data || []).map((p) => p.profile_id)
-      const gameIds = (gamesRes.data || []).map((g) => g.id)
+      const playerIds = (playersRes.data || []).map((p: any) => p.profile_id)
+      const gameIds = (gamesRes.data || []).map((g: any) => g.id)
 
       const [profilesRes, resultsRes] = await Promise.all([
         playerIds.length > 0
-          ? supabase.from('profiles').select('id, display_name, avatar_url, handicap_index, venmo_handle, cashapp_handle, created_at').in('id', playerIds)
+          ? db.from('profiles').select('id, display_name, avatar_url, handicap_index, venmo_handle, cashapp_handle, created_at').in('id', playerIds)
           : Promise.resolve({ data: [] as Profile[] }),
         gameIds.length > 0
-          ? supabase.from('game_results').select('game_id, profile_id, net_amount, details').in('game_id', gameIds)
+          ? db.from('game_results').select('game_id, profile_id, net_amount, details').in('game_id', gameIds)
           : Promise.resolve({ data: [] as GameResult[] }),
       ])
 
@@ -205,12 +208,14 @@ export const useRound = create<RoundState>((set, get) => ({
     set({ scores: updated })
 
     try {
-      const { error } = await supabase.rpc('post_score', {
-        p_round_id: currentRound.id,
-        p_profile_id: profileId,
-        p_hole_number: holeNumber,
-        p_strokes: strokes,
-      })
+      const { error } = await (db)
+        .from('scores')
+        .upsert({
+          round_id: currentRound.id,
+          profile_id: profileId,
+          hole_number: holeNumber,
+          strokes,
+        }, { onConflict: 'round_id,profile_id,hole_number' })
 
       if (error) throw error
     } catch {
@@ -230,9 +235,9 @@ export const useRound = create<RoundState>((set, get) => ({
   startRound: async () => {
     const { currentRound } = get()
     if (!currentRound) return
-    const { data } = await supabase
+    const { data } = await (db)
       .from('rounds')
-      .update({ status: 'active' as const, started_at: new Date().toISOString() })
+      .update({ status: 'active', started_at: new Date().toISOString() })
       .eq('id', currentRound.id)
       .select()
       .single()
@@ -242,9 +247,9 @@ export const useRound = create<RoundState>((set, get) => ({
   completeRound: async () => {
     const { currentRound } = get()
     if (!currentRound) return
-    const { data } = await supabase
+    const { data } = await (db)
       .from('rounds')
-      .update({ status: 'complete' as const, completed_at: new Date().toISOString() })
+      .update({ status: 'complete', completed_at: new Date().toISOString() })
       .eq('id', currentRound.id)
       .select()
       .single()
@@ -298,7 +303,7 @@ export const useRound = create<RoundState>((set, get) => ({
     const pending = getPendingScores()
     if (!pending.length) return
     for (const score of pending) {
-      const { error } = await supabase.from('scores').upsert({
+      const { error } = await (db).from('scores').upsert({
         round_id: score.roundId,
         profile_id: score.profileId,
         hole_number: score.holeNumber,

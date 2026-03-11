@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { BackButton } from '@/components/ui/BackButton'
-import { Button } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Spinner } from '@/components/ui/Spinner'
 import { toast } from '@/components/ui/Toast'
@@ -43,44 +41,54 @@ export function JoinRoundPage() {
   }
 
   return (
-    <div className="px-4 pt-6 pb-4 max-w-lg mx-auto space-y-6 animate-fade-in safe-top">
-      <div className="flex items-center gap-3">
+    <div className="min-h-dvh" style={{ backgroundColor: '#F5F0E8' }}>
+    <div className="max-w-md mx-auto min-h-dvh shadow-lg flex flex-col animate-fade-in" style={{ backgroundColor: '#F5F0E8' }}>
+      {/* Green header bar */}
+      <div className="w-full px-4 py-4 flex items-center gap-3" style={{ backgroundColor: '#2D4A3E' }}>
         <BackButton />
-        <h1 className="text-xl font-bold">Join Round</h1>
+        <h1 className="text-lg font-bold text-[#F5F0E8]">Join Match</h1>
       </div>
 
-      <Card variant="elevated" className="space-y-4">
-        <div className="text-center space-y-2">
-          <span className="text-4xl">🔗</span>
-          <p className="text-sm text-gray-500">Enter the invite code from the round creator to join their game.</p>
+      <div className="flex-1 flex flex-col items-center justify-center px-4 pb-12">
+        <div className="w-full max-w-sm bg-white rounded-2xl p-6 border shadow-sm space-y-5" style={{ borderColor: '#2D4A3E10' }}>
+          <div className="text-center space-y-2">
+            <p className="text-sm" style={{ color: '#2D4A3E', opacity: 0.6 }}>Enter the invite code from the round creator to join their game.</p>
+          </div>
+
+          <form onSubmit={handleJoin} className="space-y-4">
+            <Input
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="Enter code"
+              autoFocus
+              maxLength={8}
+              className="px-4 py-4 border-2 text-center font-mono text-2xl tracking-[0.2em] border-[#2D4A3E]/30 focus:border-[#2D4A3E]"
+            />
+            {codeError && <p className="text-birdie-red text-xs mt-1">{codeError}</p>}
+            <button
+              type="submit"
+              disabled={!codeValid || joining}
+              className="w-full py-3.5 rounded-xl font-bold disabled:opacity-50
+                transition-all active:scale-[0.98] tap-target uppercase tracking-wide"
+              style={{ backgroundColor: '#C4A962', color: '#2D4A3E' }}
+            >
+              {joining ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Spinner />
+                  Joining...
+                </span>
+              ) : 'Join'}
+            </button>
+          </form>
+
+          {!user && (
+            <p className="text-xs text-center" style={{ color: '#2D4A3E', opacity: 0.5 }}>
+              You'll need to sign in to join a round.
+            </p>
+          )}
         </div>
-
-        <form onSubmit={handleJoin} className="space-y-4">
-          <Input
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            placeholder="Enter code"
-            autoFocus
-            maxLength={8}
-            className="px-4 py-4 border-2 text-center font-mono text-2xl tracking-[0.2em] focus:border-masters-green"
-          />
-          {codeError && <p className="text-birdie-red text-xs mt-1">{codeError}</p>}
-          <Button fullWidth type="submit" disabled={!codeValid || joining}>
-            {joining ? (
-              <span className="flex items-center gap-2">
-                <Spinner />
-                Joining...
-              </span>
-            ) : 'Join Round'}
-          </Button>
-        </form>
-
-        {!user && (
-          <p className="text-xs text-center text-gray-500">
-            You'll need to sign in to join a round.
-          </p>
-        )}
-      </Card>
+      </div>
+    </div>
     </div>
   )
 }

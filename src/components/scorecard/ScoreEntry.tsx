@@ -1,15 +1,13 @@
 import { memo } from 'react'
-import { getScoreColor, getScoreBg, getScoreLabel } from '@/lib/score-colors'
 
 interface ScoreEntryProps {
   par: number
   currentScore: number | null
   onScore: (strokes: number) => void
   playerName: string
-  holeNumber: number
 }
 
-export const ScoreEntry = memo(function ScoreEntry({ par, currentScore, onScore, playerName, holeNumber }: ScoreEntryProps) {
+export const ScoreEntry = memo(function ScoreEntry({ par, currentScore, onScore, playerName }: ScoreEntryProps) {
   const options = Array.from({ length: 8 }, (_, i) => i + 1)
 
   function handleTap(strokes: number) {
@@ -18,47 +16,38 @@ export const ScoreEntry = memo(function ScoreEntry({ par, currentScore, onScore,
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex justify-between items-center">
-        <div>
-          <span className="text-sm text-gray-500">Hole {holeNumber}</span>
-          <span className="mx-2 text-gray-300">·</span>
-          <span className="text-sm font-medium">Par {par}</span>
-        </div>
-        <span className="font-semibold">{playerName}</span>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-base font-bold" style={{ color: '#2D4A3E' }}>{playerName}</p>
+        <p className="text-sm font-medium" style={{ color: '#2D4A3E', opacity: 0.5 }}>Par {par}</p>
       </div>
 
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-4 gap-2.5">
         {options.map((strokes) => {
-          const diff = strokes - par
           const isSelected = currentScore === strokes
-          const label = getScoreLabel(diff)
           return (
             <button
               key={strokes}
               onClick={() => handleTap(strokes)}
-              aria-label={`${strokes} stroke${strokes !== 1 ? 's' : ''}${label ? `, ${label}` : ''}${isSelected ? ', selected' : ''}`}
-              className={`
-                flex flex-col items-center justify-center rounded-xl py-3 tap-target
-                border-2 transition-all duration-100 active:scale-95
-                ${isSelected
-                  ? `${getScoreBg(diff)} border-2 scale-105`
-                  : 'bg-white dark:bg-night-card border-rough dark:border-night-border hover:border-masters-green/30'
-                }
-              `}
+              aria-label={`${strokes} stroke${strokes !== 1 ? 's' : ''}${isSelected ? ', selected' : ''}`}
+              className="flex items-center justify-center rounded-xl tap-target transition-all duration-100 active:scale-95"
+              style={{
+                padding: '14px 0',
+                minHeight: '64px',
+                backgroundColor: isSelected ? '#2D4A3E' : '#FFFFFF',
+                border: `1px solid ${isSelected ? '#2D4A3E' : '#E8E3DA'}`,
+              }}
             >
-              <span className={`text-2xl font-bold ${isSelected ? getScoreColor(diff) : ''}`}>
+              <span className="text-2xl font-bold" style={{ color: isSelected ? '#FFFFFF' : '#2D4A3E' }}>
                 {strokes}
               </span>
-              {label && (
-                <span className={`text-[10px] font-medium mt-0.5 ${isSelected ? getScoreColor(diff) : 'text-gray-500'}`}>
-                  {label}
-                </span>
-              )}
             </button>
           )
         })}
       </div>
+      {currentScore !== null && (
+        <p className="text-center text-xs mt-1" style={{ color: '#8A8578' }}>tap to change</p>
+      )}
     </div>
   )
 })

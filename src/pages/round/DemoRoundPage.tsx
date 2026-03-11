@@ -8,7 +8,6 @@ import { SkinsResultCard } from '@/components/scorecard/SkinsResultCard'
 import { NetPositionCard } from '@/components/scorecard/NetPositionCard'
 import { SettleUpCard } from '@/components/scorecard/SettleUpCard'
 import { BackButton } from '@/components/ui/BackButton'
-import { Button } from '@/components/ui/Button'
 import type { Score, Course, Profile } from '@/types/database'
 import { calculateSkins } from '@/lib/games/skins'
 import { minimizeTransactions } from '@/lib/games/settlement'
@@ -35,7 +34,7 @@ export function DemoRoundPage() {
   const [currentHole, setCurrentHole] = useState(1)
   const [currentPlayer, setCurrentPlayer] = useState(0)
   const [scores, setScores] = useState<Map<string, Score[]>>(new Map())
-  const [view, setView] = useState<'score' | 'card' | 'settle'>('score')
+  const [view, setView] = useState<'game' | 'scorecard'>('game')
   const scoreSectionRef = useRef<HTMLDivElement>(null)
 
   useSwipe(scoreSectionRef, {
@@ -96,93 +95,103 @@ export function DemoRoundPage() {
   }, [scores])
 
   return (
-    <div className="px-4 pt-6 pb-24 max-w-lg mx-auto space-y-4 safe-top animate-fade-in">
-      <div className="relative w-full h-24 overflow-hidden rounded-b-2xl mb-4">
-        <img src="/images/hero.webp" alt="" className="w-full h-full object-cover object-center" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-fairway dark:to-night" />
-        <div className="absolute bottom-2 left-4">
-          <p className="text-white font-bold text-sm drop-shadow">Demo Round</p>
-        </div>
-      </div>
-      <div className="flex items-center justify-between">
+    <div className="min-h-dvh" style={{ backgroundColor: '#F5F0E8' }}>
+    <div className="max-w-md mx-auto min-h-dvh shadow-lg flex flex-col animate-fade-in" style={{ backgroundColor: '#F5F0E8' }}>
+      {/* Green header bar */}
+      <div className="w-full px-4 py-4 flex items-center justify-between" style={{ backgroundColor: '#2D4A3E' }}>
         <div className="flex items-center gap-3">
           <BackButton />
           <div>
-            <h1 className="text-lg font-bold">{DEMO_COURSE.name}</h1>
-            <p className="text-xs text-gray-500">Hole {currentHole} of {DEMO_COURSE.holes} · $5 Skins</p>
+            <h1 className="text-base font-bold text-[#F5F0E8]">{DEMO_COURSE.name}</h1>
+            <p className="text-xs text-[#F5F0E8]/60">
+              Hole {currentHole} · Par {DEMO_COURSE.par[currentHole - 1]} · $5 Skins · Demo
+            </p>
           </div>
-        </div>
-        <div className="flex gap-1">
-          {(['score', 'card', 'settle'] as const).map((v) => (
-            <button
-              key={v}
-              onClick={() => setView(v)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium tap-target ${
-                view === v ? 'bg-masters-green text-white' : 'bg-rough dark:bg-night-border text-gray-600 dark:text-gray-400'
-              }`}
-            >
-              {v === 'score' ? 'Score' : v === 'card' ? 'Card' : 'Settle'}
-            </button>
-          ))}
         </div>
       </div>
 
-      {view === 'score' && (
-        <div ref={scoreSectionRef} className="space-y-4">
-          <HoleSelector
-            totalHoles={DEMO_COURSE.holes}
-            currentHole={currentHole}
-            scoredHoles={scoredHoles}
-            onSelectHole={(h) => { setCurrentHole(h); setCurrentPlayer(0) }}
-          />
+      {/* View tabs */}
+      <div className="w-full flex border-b" style={{ borderColor: '#E8E3DA', backgroundColor: '#FFFFFF' }}>
+        {(['game', 'scorecard'] as const).map((v) => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            className="flex-1 py-3 text-sm tracking-wider tap-target transition-colors"
+            style={{
+              fontWeight: view === v ? 700 : 500,
+              color: view === v ? '#2D4A3E' : '#2D4A3E99',
+              borderBottom: view === v ? '3px solid #C4A962' : '3px solid transparent',
+            }}
+          >
+            {v.toUpperCase()}
+          </button>
+        ))}
+      </div>
 
-          <PlayerTabs
-            players={DEMO_PLAYERS}
-            currentPlayerIdx={currentPlayer}
-            onSelectPlayer={setCurrentPlayer}
-          />
-
-          <ScoreEntry
-            par={DEMO_COURSE.par[currentHole - 1]}
-            currentScore={
-              (scores.get(DEMO_PLAYERS[currentPlayer].id) || [])
-                .find((s) => s.hole_number === currentHole)?.strokes ?? null
-            }
-            onScore={handleScore}
-            playerName={DEMO_PLAYERS[currentPlayer].display_name}
-            holeNumber={currentHole}
-          />
-
-          {skinsResult.results.filter((r) => r.winner || r.carryover).length > 0 && (
-            <SkinsResultCard
-              results={skinsResult.results}
-              skinValue={5}
-              playerName={playerName}
+      <div className="px-4 pt-4 pb-24 max-w-lg mx-auto w-full space-y-4">
+        {view === 'game' && (
+          <div ref={scoreSectionRef} className="space-y-4">
+            <HoleSelector
+              totalHoles={DEMO_COURSE.holes}
+              currentHole={currentHole}
+              scoredHoles={scoredHoles}
+              onSelectHole={(h) => { setCurrentHole(h); setCurrentPlayer(0) }}
             />
-          )}
-        </div>
-      )}
 
-      {view === 'card' && (
-        <Scorecard
-          course={DEMO_COURSE}
-          players={DEMO_PLAYERS}
-          scores={scores}
-          currentHole={currentHole}
-          onHoleSelect={(h) => { setCurrentHole(h); setCurrentPlayer(0); setView('score') }}
-        />
-      )}
+            <PlayerTabs
+              players={DEMO_PLAYERS}
+              currentPlayerIdx={currentPlayer}
+              onSelectPlayer={setCurrentPlayer}
+            />
 
-      {view === 'settle' && (
-        <div className="space-y-4">
-          <NetPositionCard players={DEMO_PLAYERS} payouts={skinsResult.payouts} />
-          <SettleUpCard settlements={settlements} playerName={playerName} />
+            <ScoreEntry
+              par={DEMO_COURSE.par[currentHole - 1]}
+              currentScore={
+                (scores.get(DEMO_PLAYERS[currentPlayer].id) || [])
+                  .find((s) => s.hole_number === currentHole)?.strokes ?? null
+              }
+              onScore={handleScore}
+              playerName={DEMO_PLAYERS[currentPlayer].display_name}
+            />
 
-          <Button fullWidth variant="secondary" onClick={() => navigate('/')}>
-            Finish Round
-          </Button>
-        </div>
-      )}
+            {skinsResult.results.filter((r) => r.winner || r.carryover).length > 0 && (
+              <SkinsResultCard
+                results={skinsResult.results}
+                skinValue={5}
+                playerName={playerName}
+              />
+            )}
+          </div>
+        )}
+
+        {view === 'scorecard' && (
+          <div className="space-y-4">
+            <Scorecard
+              course={DEMO_COURSE}
+              players={DEMO_PLAYERS}
+              scores={scores}
+              currentHole={currentHole}
+              onHoleSelect={(h) => { setCurrentHole(h); setCurrentPlayer(0); setView('game') }}
+            />
+
+            {Array.from(skinsResult.payouts.values()).some((v) => v !== 0) && (
+              <>
+                <NetPositionCard players={DEMO_PLAYERS} payouts={skinsResult.payouts} />
+                <SettleUpCard settlements={settlements} playerName={playerName} players={DEMO_PLAYERS} />
+              </>
+            )}
+
+            <button
+              onClick={() => navigate('/')}
+              className="w-full py-3.5 rounded-xl font-bold transition-all active:scale-[0.98] tap-target uppercase tracking-wide"
+              style={{ backgroundColor: '#2D4A3E', color: '#F5F0E8' }}
+            >
+              Back to Home
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
     </div>
   )
 }

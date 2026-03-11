@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '@/lib/supabase'
-import { Button } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
+import { db as supabase } from '@/lib/supabase'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Input } from '@/components/ui/Input'
 import { Spinner } from '@/components/ui/Spinner'
@@ -58,7 +56,7 @@ export function CrewsPage() {
         return
       }
 
-      const crewIds = memberRows.map((r) => r.crew_id)
+      const crewIds = memberRows.map((r: any) => r.crew_id)
 
       // Fetch all members first to get profile IDs
       const { data: allMembers } = await supabase
@@ -67,7 +65,7 @@ export function CrewsPage() {
         .in('crew_id', crewIds)
 
       // Now fetch crews and profiles in parallel (both independent once we have IDs)
-      const allProfileIds = [...new Set((allMembers || []).map((m) => m.profile_id))]
+      const allProfileIds = [...new Set((allMembers || []).map((m: any) => m.profile_id))]
       const [{ data: crewData }, { data: profiles }] = await Promise.all([
         supabase.from('crews').select('*').in('id', crewIds),
         allProfileIds.length > 0
@@ -88,7 +86,7 @@ export function CrewsPage() {
         membersByCrewId.set(m.crew_id, list)
       }
 
-      const result: CrewWithMembers[] = (crewData || []).map((crew) => {
+      const result: CrewWithMembers[] = (crewData || []).map((crew: any) => {
         const profileIds = membersByCrewId.get(crew.id) || []
         const profiles = profileIds.map((id) => profileMap.get(id)).filter((p): p is Profile => !!p)
         return { ...crew, memberCount: profileIds.length, members: profiles }
@@ -161,119 +159,152 @@ export function CrewsPage() {
 
   if (!user) {
     return (
-      <div className="px-4 pt-6 max-w-lg mx-auto">
-        <h1 className="text-xl font-bold mb-6">Crews</h1>
-        <EmptyState
-          icon="👥"
-          title="Sign in to manage crews"
-          description="Create or join a crew to play regularly with friends."
-          actionLabel="Sign In"
-          onAction={() => navigate('/auth')}
-        />
+      <div className="min-h-dvh flex flex-col" style={{ backgroundColor: '#F5F0E8' }}>
+        <div className="w-full px-4 py-4" style={{ backgroundColor: '#2D4A3E' }}>
+          <h1 className="text-lg font-bold text-[#F5F0E8]">My Crews</h1>
+        </div>
+        <div className="px-4 pt-6 max-w-lg mx-auto">
+          <EmptyState
+            icon="👥"
+            title="Sign in to manage crews"
+            description="Create or join a crew to play regularly with friends."
+            actionLabel="Sign In"
+            onAction={() => navigate('/auth')}
+          />
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="px-4 pt-6 pb-4 max-w-lg mx-auto space-y-4 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Crews</h1>
+    <div className="min-h-dvh flex flex-col animate-fade-in" style={{ backgroundColor: '#F5F0E8' }}>
+      {/* Green header */}
+      <div className="w-full px-4 py-4 flex items-center justify-between" style={{ backgroundColor: '#2D4A3E' }}>
+        <h1 className="text-lg font-bold text-[#F5F0E8]">My Crews</h1>
         <div className="flex gap-2">
           <button
             onClick={() => { setShowJoin(!showJoin); setShowCreate(false) }}
-            className="text-sm font-medium text-masters-green tap-target px-2"
+            className="text-sm font-medium tap-target px-3 py-1 rounded-lg transition-colors"
+            style={{ color: '#F5F0E8', border: '1px solid rgba(245,240,232,0.3)' }}
           >
             Join
           </button>
           <button
             onClick={() => { setShowCreate(!showCreate); setShowJoin(false) }}
-            className="text-sm font-medium text-masters-green tap-target px-2"
+            className="text-sm font-bold tap-target px-3 py-1 rounded-lg"
+            style={{ backgroundColor: '#C4A962', color: '#2D4A3E' }}
           >
             + New
           </button>
         </div>
       </div>
 
-      {showCreate && (
-        <Card variant="elevated" className="space-y-3 animate-slide-down">
-          <h3 className="font-semibold text-sm">Create a Crew</h3>
-          <Input
-            value={crewName}
-            onChange={(e) => setCrewName(e.target.value)}
-            placeholder="Crew name (e.g. Saturday Skins)"
-            autoFocus
-            inputSize="sm"
-            maxLength={50}
-          />
-          {crewNameError && <p className="text-birdie-red text-xs mt-1">{crewNameError}</p>}
-          <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setShowCreate(false)} className="flex-1">Cancel</Button>
-            <Button size="sm" onClick={handleCreateCrew} disabled={!crewName.trim() || !!crewNameError || submitting || createLoading} className="flex-1">
-              {createLoading ? <span className="flex items-center gap-2"><Spinner />Creating...</span> : 'Create'}
-            </Button>
+      <div className="px-4 pt-4 pb-4 max-w-lg mx-auto w-full space-y-4">
+        {showCreate && (
+          <div className="bg-white rounded-2xl p-4 border shadow-sm space-y-3 animate-slide-down" style={{ borderColor: '#2D4A3E10' }}>
+            <h3 className="font-bold text-sm" style={{ color: '#2D4A3E' }}>Create a Crew</h3>
+            <Input
+              value={crewName}
+              onChange={(e) => setCrewName(e.target.value)}
+              placeholder="Crew name (e.g. Saturday Skins)"
+              autoFocus
+              inputSize="sm"
+              maxLength={50}
+              className="border-[#2D4A3E]/30 focus:border-[#2D4A3E]"
+            />
+            {crewNameError && <p className="text-birdie-red text-xs mt-1">{crewNameError}</p>}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowCreate(false)}
+                className="flex-1 py-2 rounded-xl text-sm font-medium border-2 tap-target"
+                style={{ borderColor: '#2D4A3E', color: '#2D4A3E' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateCrew}
+                disabled={!crewName.trim() || !!crewNameError || submitting || createLoading}
+                className="flex-1 py-2 rounded-xl text-sm font-bold tap-target disabled:opacity-50"
+                style={{ backgroundColor: '#C4A962', color: '#2D4A3E' }}
+              >
+                {createLoading ? <span className="flex items-center justify-center gap-2"><Spinner />Creating...</span> : 'Create'}
+              </button>
+            </div>
           </div>
-        </Card>
-      )}
+        )}
 
-      {showJoin && (
-        <Card variant="elevated" className="space-y-3 animate-slide-down">
-          <h3 className="font-semibold text-sm">Join a Crew</h3>
-          <Input
-            value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value)}
-            placeholder="Enter invite code"
-            autoFocus
-            inputSize="sm"
-            className="font-mono"
-          />
-          <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setShowJoin(false)} className="flex-1">Cancel</Button>
-            <Button size="sm" onClick={handleJoinCrew} disabled={!joinCode.trim() || submitting || joinLoading} className="flex-1">
-              {joinLoading ? <span className="flex items-center gap-2"><Spinner />Joining...</span> : 'Join'}
-            </Button>
+        {showJoin && (
+          <div className="bg-white rounded-2xl p-4 border shadow-sm space-y-3 animate-slide-down" style={{ borderColor: '#2D4A3E10' }}>
+            <h3 className="font-bold text-sm" style={{ color: '#2D4A3E' }}>Join a Crew</h3>
+            <Input
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value)}
+              placeholder="Enter invite code"
+              autoFocus
+              inputSize="sm"
+              className="font-mono border-[#2D4A3E]/30 focus:border-[#2D4A3E]"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowJoin(false)}
+                className="flex-1 py-2 rounded-xl text-sm font-medium border-2 tap-target"
+                style={{ borderColor: '#2D4A3E', color: '#2D4A3E' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleJoinCrew}
+                disabled={!joinCode.trim() || submitting || joinLoading}
+                className="flex-1 py-2 rounded-xl text-sm font-bold tap-target disabled:opacity-50"
+                style={{ backgroundColor: '#C4A962', color: '#2D4A3E' }}
+              >
+                {joinLoading ? <span className="flex items-center justify-center gap-2"><Spinner />Joining...</span> : 'Join'}
+              </button>
+            </div>
           </div>
-        </Card>
-      )}
+        )}
 
-      {crews.length === 0 && !showCreate && !showJoin ? (
-        <EmptyState
-          icon="👥"
-          title="No crews yet"
-          description="Create a crew or join one with an invite code to play with your regulars."
-          actionLabel="Create a Crew"
-          onAction={() => setShowCreate(true)}
-        />
-      ) : (
-        <div className="space-y-3">
-          {crews.map((crew) => (
-            <Card key={crew.id} className="space-y-3">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="font-semibold">{crew.name}</h3>
-                  <p className="text-xs text-gray-500 mt-0.5">{crew.memberCount} member{crew.memberCount !== 1 ? 's' : ''}</p>
-                </div>
-                <button
-                  onClick={() => shareInvite(crew.invite_code, 'crew')}
-                  className="text-xs font-medium text-masters-green tap-target px-2 py-1"
-                >
-                  Share
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {crew.members.map((m) => (
-                  <div key={m.id} className="flex items-center gap-1.5 bg-rough dark:bg-night-border rounded-full px-3 py-1">
-                    <span className="text-xs">{m.avatar_url ? '🖼' : '👤'}</span>
-                    <span className="text-xs font-medium">{m.display_name}</span>
+        {crews.length === 0 && !showCreate && !showJoin ? (
+          <EmptyState
+            icon="👥"
+            title="No crews yet"
+            description="Create a crew or join one with an invite code to play with your regulars."
+            actionLabel="Create a Crew"
+            onAction={() => setShowCreate(true)}
+          />
+        ) : (
+          <div className="space-y-3">
+            {crews.map((crew) => (
+              <div key={crew.id} className="bg-white rounded-2xl p-4 border shadow-sm space-y-3" style={{ borderColor: '#2D4A3E10' }}>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-bold" style={{ color: '#2D4A3E' }}>{crew.name}</h3>
+                    <p className="text-xs mt-0.5" style={{ color: '#2D4A3E', opacity: 0.5 }}>{crew.memberCount} member{crew.memberCount !== 1 ? 's' : ''}</p>
                   </div>
-                ))}
+                  <button
+                    onClick={() => shareInvite(crew.invite_code, 'crew')}
+                    className="text-xs font-bold tap-target px-2 py-1"
+                    style={{ color: '#C4A962' }}
+                  >
+                    Share
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {crew.members.map((m) => (
+                    <div key={m.id} className="flex items-center gap-1.5 rounded-full px-3 py-1" style={{ backgroundColor: '#2D4A3E10' }}>
+                      <span className="text-xs">👤</span>
+                      <span className="text-xs font-medium" style={{ color: '#2D4A3E' }}>{m.display_name}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="text-xs" style={{ color: '#2D4A3E', opacity: 0.5 }}>
+                  Code: <span className="font-mono font-medium">{crew.invite_code}</span>
+                </div>
               </div>
-              <div className="text-xs text-gray-500">
-                Code: <span className="font-mono font-medium text-gray-500">{crew.invite_code}</span>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

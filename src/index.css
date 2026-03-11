@@ -10,20 +10,22 @@
 }
 
 @theme {
-  --color-masters-green: #006747;
-  --color-masters-dark: #004D35;
+  --color-masters-green: #2D4A3E;
+  --color-masters-dark: #1E3329;
   --color-gold: #C4A962;
   --color-gold-light: #D4BE82;
-  --color-gold-text: #8B7530;
+  --color-gold-text: #2D4A3E;
   --color-birdie-red: #C41E3A;
-  --color-fairway: #F5F5F0;
-  --color-rough: #E8E8E0;
+  --color-fairway: #F5F0E8;
+  --color-rough: #EBE5D9;
   --color-bunker: #D4D0C8;
-  --color-night: #1A1A2E;
-  --color-night-card: #242440;
-  --color-night-border: #2E2E4A;
-  --color-text-primary: #1a1a1a;
-  --color-text-secondary: #4b5563;
+  --color-night: #1A2420;
+  --color-night-card: #243430;
+  --color-night-border: #2E3E3A;
+  --color-cream: #F5F0E8;
+  --color-cream-card: #FFFFFF;
+  --color-text-primary: #2D4A3E;
+  --color-text-secondary: #5A7268;
 }
 
 @layer base {
@@ -34,8 +36,8 @@
 
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background-color: var(--color-fairway);
-    color: #1a1a1a;
+    background-color: var(--color-cream);
+    color: var(--color-text-primary);
     min-height: 100dvh;
     margin: 0;
   }
@@ -43,7 +45,7 @@
   @media (prefers-color-scheme: dark) {
     body {
       background-color: var(--color-night);
-      color: #e8e8e0;
+      color: #EBE5D9;
     }
   }
 }
