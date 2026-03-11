@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { Spinner } from '@/components/ui/Spinner'
 import { useAuth } from '@/stores/auth'
 
 export function AuthPage() {
@@ -8,11 +10,25 @@ export function AuthPage() {
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const { signInWithEmail, signInWithGoogle } = useAuth()
+  const { user, signInWithEmail, signInWithGoogle } = useAuth()
   const navigate = useNavigate()
+
+  // Redirect to home if already signed in
+  useEffect(() => {
+    if (user) navigate('/', { replace: true })
+  }, [user, navigate])
+
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  const [emailTouched, setEmailTouched] = useState(false)
+  const emailError = emailTouched && email.length > 0 && !emailValid ? 'Enter a valid email address' : ''
 
   async function handleEmail(e: React.FormEvent) {
     e.preventDefault()
+    setEmailTouched(true)
+    if (!emailValid) {
+      setError('Enter a valid email address')
+      return
+    }
     setLoading(true)
     setError('')
     const { error } = await signInWithEmail(email)
@@ -28,7 +44,7 @@ export function AuthPage() {
 
   if (sent) {
     return (
-      <div className="min-h-dvh flex items-center justify-center px-4">
+      <div className="min-h-dvh flex items-center justify-center px-4 animate-fade-in safe-top">
         <div className="text-center space-y-4 max-w-sm">
           <div className="text-5xl">📬</div>
           <h1 className="text-xl font-bold">Check your email</h1>
@@ -44,7 +60,7 @@ export function AuthPage() {
   }
 
   return (
-    <div className="min-h-dvh flex items-center justify-center px-4">
+    <div className="min-h-dvh flex items-center justify-center px-4 animate-fade-in safe-top">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
           <h1 className="text-3xl font-bold text-masters-green dark:text-gold">Gimme</h1>
@@ -69,16 +85,22 @@ export function AuthPage() {
           </div>
 
           <form onSubmit={handleEmail} className="space-y-3">
-            <input
+            <Input
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => { setEmail(e.target.value); setEmailTouched(true) }}
               placeholder="your@email.com"
+              autoComplete="email"
               required
-              className="w-full px-4 py-3 rounded-xl border border-rough dark:border-night-border bg-white dark:bg-night-card text-base focus:outline-none focus:ring-2 focus:ring-masters-green/50"
             />
+            {emailError && <p className="text-birdie-red text-xs mt-1">{emailError}</p>}
             <Button fullWidth type="submit" disabled={loading}>
-              {loading ? 'Sending...' : 'Send Magic Link'}
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <Spinner />
+                  Sending...
+                </span>
+              ) : 'Send Magic Link'}
             </Button>
           </form>
 
@@ -87,7 +109,7 @@ export function AuthPage() {
 
         <button
           onClick={() => navigate('/')}
-          className="block mx-auto text-sm text-gray-400 hover:text-gray-600"
+          className="block mx-auto text-sm text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
         >
           Skip for now
         </button>

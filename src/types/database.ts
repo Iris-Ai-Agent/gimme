@@ -41,6 +41,7 @@ export interface Round {
   crew_id: string | null
   created_by: string
   status: RoundStatus
+  invite_code: string
   started_at: string | null
   completed_at: string | null
   created_at: string
@@ -77,6 +78,10 @@ export interface GameResult {
   details: Record<string, unknown>
 }
 
+export interface RoundWithCourse extends Round {
+  courses: Course
+}
+
 export interface Settlement {
   id: string
   round_id: string
@@ -85,21 +90,94 @@ export interface Settlement {
   amount: number
   status: SettlementStatus
   settled_at: string | null
+  created_at: string
+}
+
+interface Rel {
+  foreignKeyName: string
+  columns: string[]
+  isOneToOne?: boolean
+  referencedRelation: string
+  referencedColumns: string[]
 }
 
 export interface Database {
   public: {
     Tables: {
-      profiles: { Row: Profile; Insert: Partial<Profile> & { id: string }; Update: Partial<Profile> }
-      crews: { Row: Crew; Insert: Omit<Crew, 'id' | 'created_at'>; Update: Partial<Crew> }
-      crew_members: { Row: CrewMember; Insert: CrewMember; Update: Partial<CrewMember> }
-      courses: { Row: Course; Insert: Omit<Course, 'id'>; Update: Partial<Course> }
-      rounds: { Row: Round; Insert: Omit<Round, 'id' | 'created_at'>; Update: Partial<Round> }
-      round_players: { Row: RoundPlayer; Insert: RoundPlayer; Update: Partial<RoundPlayer> }
-      scores: { Row: Score; Insert: Omit<Score, 'id' | 'updated_at'>; Update: Partial<Score> }
-      games: { Row: Game; Insert: Omit<Game, 'id'>; Update: Partial<Game> }
-      game_results: { Row: GameResult; Insert: GameResult; Update: Partial<GameResult> }
-      settlements: { Row: Settlement; Insert: Omit<Settlement, 'id'>; Update: Partial<Settlement> }
+      profiles: {
+        Row: Profile
+        Insert: Partial<Profile> & { id: string }
+        Update: Partial<Profile>
+        Relationships: Rel[]
+      }
+      crews: {
+        Row: Crew
+        Insert: Partial<Crew> & { name: string; created_by: string }
+        Update: Partial<Crew>
+        Relationships: Rel[]
+      }
+      crew_members: {
+        Row: CrewMember
+        Insert: Partial<CrewMember> & { crew_id: string; profile_id: string }
+        Update: Partial<CrewMember>
+        Relationships: Rel[]
+      }
+      courses: {
+        Row: Course
+        Insert: Partial<Course> & { name: string; holes: number; par: number[]; created_by: string }
+        Update: Partial<Course>
+        Relationships: Rel[]
+      }
+      rounds: {
+        Row: Round
+        Insert: Partial<Round> & { course_id: string; created_by: string; status: RoundStatus }
+        Update: Partial<Round>
+        Relationships: Rel[]
+      }
+      round_players: {
+        Row: RoundPlayer
+        Insert: Partial<RoundPlayer> & { round_id: string; profile_id: string }
+        Update: Partial<RoundPlayer>
+        Relationships: Rel[]
+      }
+      scores: {
+        Row: Score
+        Insert: Partial<Score> & { round_id: string; profile_id: string; hole_number: number; strokes: number }
+        Update: Partial<Score>
+        Relationships: Rel[]
+      }
+      games: {
+        Row: Game
+        Insert: Partial<Game> & { round_id: string; format: GameFormat; config: Record<string, unknown>; status: GameStatus }
+        Update: Partial<Game>
+        Relationships: Rel[]
+      }
+      game_results: {
+        Row: GameResult
+        Insert: Partial<GameResult> & { game_id: string; profile_id: string }
+        Update: Partial<GameResult>
+        Relationships: Rel[]
+      }
+      settlements: {
+        Row: Settlement
+        Insert: Partial<Settlement> & { round_id: string; payer_id: string; payee_id: string; amount: number }
+        Update: Partial<Settlement>
+        Relationships: Rel[]
+      }
+    }
+    Views: {
+      [key: string]: {
+        Row: Record<string, unknown>
+        Insert: Record<string, unknown>
+        Update: Record<string, unknown>
+        Relationships: Rel[]
+      }
+    }
+    Functions: {
+      [key: string]: {
+        Args: Record<string, unknown>
+        Returns: unknown
+      }
     }
   }
 }

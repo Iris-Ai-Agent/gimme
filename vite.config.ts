@@ -9,7 +9,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.svg'],
       manifest: {
         name: 'Gimme — Golf Side Games',
         short_name: 'Gimme',
@@ -19,26 +19,36 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'portrait',
         icons: [
-          { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml' },
         ],
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/.*supabase\.co\/.*/i,
+            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'supabase-api',
               expiration: { maxEntries: 50, maxAgeSeconds: 300 },
+              networkTimeoutSeconds: 3,
             },
           },
         ],
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom'],
+          router: ['react-router-dom'],
+          supabase: ['@supabase/supabase-js'],
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': '/src',

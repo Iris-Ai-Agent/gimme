@@ -15,6 +15,8 @@ interface AuthState {
   updateProfile: (updates: Partial<Profile>) => Promise<void>
 }
 
+let authSubscription: { unsubscribe: () => void } | null = null
+
 export const useAuth = create<AuthState>((set, get) => ({
   user: null,
   session: null,
@@ -24,28 +26,42 @@ export const useAuth = create<AuthState>((set, get) => ({
   initialize: async () => {
     const { data: { session } } = await supabase.auth.getSession()
     if (session?.user) {
-      const { data: profile } = await supabase
+      set({ user: session.user, session, loading: false })
+      supabase
         .from('profiles')
         .select('*')
         .eq('id', session.user.id)
         .single()
-      set({ user: session.user, session, profile, loading: false })
+        .then(({ data: profile }) => {
+          if (profile) set({ profile })
+        })
     } else {
       set({ loading: false })
     }
 
-    supabase.auth.onAuthStateChange(async (_event, session) => {
+    // Unsubscribe previous listener if initialize() is called again
+    if (authSubscription) {
+      authSubscription.unsubscribe()
+      authSubscription = null
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-        set({ user: session.user, session, profile })
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single()
+          set({ user: session.user, session, profile })
+        } catch {
+          set({ user: session.user, session, profile: null })
+        }
       } else {
         set({ user: null, session: null, profile: null })
       }
     })
+    authSubscription = subscription
   },
 
   signInWithEmail: async (email: string) => {

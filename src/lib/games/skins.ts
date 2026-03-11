@@ -3,7 +3,6 @@ import type { Score } from '@/types/database'
 export interface SkinsConfig {
   skinValue: number
   carryover: boolean
-  useNet: boolean
 }
 
 export interface SkinResult {
@@ -22,12 +21,22 @@ export function calculateSkins(
   const payouts = new Map<string, number>()
   let pot = config.skinValue
 
+  // Pre-index scores: player -> hole -> Score for O(1) lookups
+  const indexed = new Map<string, Map<number, Score>>()
+  scores.forEach((playerScores, playerId) => {
+    const holeMap = new Map<number, Score>()
+    for (const s of playerScores) {
+      holeMap.set(s.hole_number, s)
+    }
+    indexed.set(playerId, holeMap)
+  })
+
   for (let hole = 1; hole <= totalHoles; hole++) {
     let bestScore = Infinity
     let bestPlayers: string[] = []
 
-    scores.forEach((playerScores, playerId) => {
-      const holeScore = playerScores.find((s) => s.hole_number === hole)
+    indexed.forEach((holeMap, playerId) => {
+      const holeScore = holeMap.get(hole)
       if (!holeScore) return
       if (holeScore.strokes < bestScore) {
         bestScore = holeScore.strokes

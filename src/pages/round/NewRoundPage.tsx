@@ -1,10 +1,18 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { BackButton } from '@/components/ui/BackButton'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { Input } from '@/components/ui/Input'
+import { Spinner } from '@/components/ui/Spinner'
+import { toast } from '@/components/ui/Toast'
+import { getErrorMessage } from '@/lib/utils'
+import { useAuth } from '@/stores/auth'
+import { useRound } from '@/stores/round'
 import type { GameFormat } from '@/types/database'
 
-const DEFAULT_PARS = [4, 4, 3, 5, 4, 3, 4, 5, 4, 4, 4, 3, 5, 4, 3, 4, 5, 4]
+const DEFAULT_PARS_9 = [4, 4, 3, 5, 4, 3, 4, 5, 4]
+const DEFAULT_PARS_18 = [4, 4, 3, 5, 4, 3, 4, 5, 4, 4, 4, 3, 5, 4, 3, 4, 5, 4]
 
 const GAME_OPTIONS: { format: GameFormat; name: string; desc: string; emoji: string }[] = [
   { format: 'nassau', name: 'Nassau', desc: 'Front 9 / Back 9 / Overall', emoji: '🏆' },
@@ -15,13 +23,20 @@ const GAME_OPTIONS: { format: GameFormat; name: string; desc: string; emoji: str
 
 export function NewRoundPage() {
   const navigate = useNavigate()
-  const [step, setStep] = useState<'course' | 'players' | 'games'>('course')
+  const { user } = useAuth()
+  const { createRound } = useRound()
+  const [step, setStep] = useState<'course' | 'games'>('course')
   const [courseName, setCourseName] = useState('')
   const [holes, setHoles] = useState(18)
-  const [players, setPlayers] = useState<string[]>([''])
   const [selectedGames, setSelectedGames] = useState<Set<GameFormat>>(new Set())
   const [skinValue, setSkinValue] = useState(5)
   const [nassauBet, setNassauBet] = useState(5)
+  const [creating, setCreating] = useState(false)
+  const courseNameError = courseName.length > 0 && courseName.trim().length === 0
+    ? 'Course name cannot be blank'
+    : courseName.trim().length > 100
+      ? 'Course name must be 100 characters or less'
+      : ''
 
   function toggleGame(format: GameFormat) {
     const next = new Set(selectedGames)
@@ -30,50 +45,73 @@ export function NewRoundPage() {
     setSelectedGames(next)
   }
 
-  function addPlayer() {
-    setPlayers([...players, ''])
-  }
+  async function handleStart() {
+    if (!user) {
+      toast('info', 'Sign in to create a round with Supabase, or try the demo.')
+      navigate('/round/demo')
+      return
+    }
 
-  function updatePlayer(idx: number, name: string) {
-    const next = [...players]
-    next[idx] = name
-    setPlayers(next)
-  }
+    setCreating(true)
+    try {
+      const pars = holes === 9 ? DEFAULT_PARS_9 : DEFAULT_PARS_18
+      const gameDefs = Array.from(selectedGames).map((format) => {
+        const config: Record<string, unknown> = {}
+        if (format === 'skins') {
+          config.skinValue = skinValue
+          config.carryover = true
+        }
+        if (format === 'nassau') {
+          config.frontBet = nassauBet
+          config.backBet = nassauBet
+          config.overallBet = nassauBet
+        }
+        return { format, config }
+      })
 
-  function removePlayer(idx: number) {
-    setPlayers(players.filter((_, i) => i !== idx))
-  }
+      const roundId = await createRound({
+        courseName,
+        pars,
+        games: gameDefs,
+      })
 
-  function handleStart() {
-    // TODO: create round in Supabase, navigate to scorecard
-    navigate('/round/demo')
+      toast('success', 'Round created! Share the invite code.')
+      navigate(`/round/${roundId}`)
+    } catch (err) {
+      toast('error', getErrorMessage(err, 'Failed to create round'))
+    } finally {
+      setCreating(false)
+    }
   }
 
   return (
-    <div className="px-4 pt-6 pb-4 max-w-lg mx-auto space-y-6">
+    <div className="px-4 pt-6 pb-4 max-w-lg mx-auto space-y-6 animate-fade-in safe-top">
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="tap-target text-gray-500">←</button>
+        <BackButton />
         <h1 className="text-xl font-bold">New Round</h1>
       </div>
 
+      {/* Progress bar */}
       <div className="flex gap-1">
-        {['course', 'players', 'games'].map((s, i) => (
-          <div key={s} className={`flex-1 h-1.5 rounded-full ${
-            (['course', 'players', 'games'].indexOf(step) >= i) ? 'bg-masters-green' : 'bg-rough dark:bg-night-border'
+        {['course', 'games'].map((s, i) => (
+          <div key={s} className={`flex-1 h-1.5 rounded-full transition-colors duration-300 ${
+            (['course', 'games'].indexOf(step) >= i) ? 'bg-masters-green' : 'bg-rough dark:bg-night-border'
           }`} />
         ))}
       </div>
 
       {step === 'course' && (
-        <div className="space-y-4">
+        <div className="space-y-4 animate-fade-in">
           <div>
             <label className="block text-sm font-medium mb-1">Course Name</label>
-            <input
+            <Input
               value={courseName}
               onChange={(e) => setCourseName(e.target.value)}
               placeholder="e.g. Pebble Beach"
-              className="w-full px-4 py-3 rounded-xl border border-rough dark:border-night-border bg-white dark:bg-night-card focus:outline-none focus:ring-2 focus:ring-masters-green/50"
+              autoFocus
+              maxLength={100}
             />
+            {courseNameError && <p className="text-birdie-red text-xs mt-1">{courseNameError}</p>}
           </div>
 
           <div>
@@ -86,7 +124,7 @@ export function NewRoundPage() {
                   className={`flex-1 py-3 rounded-xl font-semibold tap-target border-2 transition-all ${
                     holes === h
                       ? 'border-masters-green bg-masters-green/10 text-masters-green'
-                      : 'border-rough dark:border-night-border'
+                      : 'border-rough dark:border-night-border hover:border-masters-green/30'
                   }`}
                 >
                   {h} Holes
@@ -95,60 +133,20 @@ export function NewRoundPage() {
             </div>
           </div>
 
-          <Button fullWidth onClick={() => setStep('players')} disabled={!courseName}>
-            Next: Add Players
+          <Button fullWidth onClick={() => setStep('games')} disabled={!courseName.trim() || !!courseNameError}>
+            Next: Pick Games
           </Button>
         </div>
       )}
 
-      {step === 'players' && (
-        <div className="space-y-4">
-          <div className="space-y-3">
-            {players.map((name, idx) => (
-              <div key={idx} className="flex gap-2">
-                <input
-                  value={name}
-                  onChange={(e) => updatePlayer(idx, e.target.value)}
-                  placeholder={`Player ${idx + 1}`}
-                  className="flex-1 px-4 py-3 rounded-xl border border-rough dark:border-night-border bg-white dark:bg-night-card focus:outline-none focus:ring-2 focus:ring-masters-green/50"
-                />
-                {players.length > 1 && (
-                  <button onClick={() => removePlayer(idx)} className="tap-target text-gray-400 hover:text-birdie-red px-2">
-                    ✕
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {players.length < 8 && (
-            <button
-              onClick={addPlayer}
-              className="w-full py-3 rounded-xl border-2 border-dashed border-rough dark:border-night-border text-gray-400 hover:border-masters-green hover:text-masters-green transition-colors tap-target"
-            >
-              + Add Player
-            </button>
-          )}
-
-          <div className="flex gap-3">
-            <Button variant="ghost" onClick={() => setStep('course')} className="flex-1">
-              Back
-            </Button>
-            <Button onClick={() => setStep('games')} disabled={players.filter(Boolean).length < 2} className="flex-1">
-              Next: Games
-            </Button>
-          </div>
-        </div>
-      )}
-
       {step === 'games' && (
-        <div className="space-y-4">
+        <div className="space-y-4 animate-fade-in">
           <div className="space-y-3">
             {GAME_OPTIONS.map((game) => (
               <Card
                 key={game.format}
                 className={`cursor-pointer transition-all ${
-                  selectedGames.has(game.format) ? 'border-masters-green ring-1 ring-masters-green/30' : ''
+                  selectedGames.has(game.format) ? 'border-masters-green ring-1 ring-masters-green/30' : 'hover:border-masters-green/30'
                 }`}
                 onClick={() => toggleGame(game.format)}
               >
@@ -158,12 +156,16 @@ export function NewRoundPage() {
                     <div className="font-semibold">{game.name}</div>
                     <div className="text-sm text-gray-500">{game.desc}</div>
                   </div>
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
                     selectedGames.has(game.format)
                       ? 'border-masters-green bg-masters-green text-white'
                       : 'border-gray-300'
                   }`}>
-                    {selectedGames.has(game.format) && '✓'}
+                    {selectedGames.has(game.format) && (
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
                   </div>
                 </div>
               </Card>
@@ -178,7 +180,7 @@ export function NewRoundPage() {
                   <button
                     key={v}
                     onClick={() => setSkinValue(v)}
-                    className={`flex-1 py-2 rounded-lg font-medium text-sm tap-target ${
+                    className={`flex-1 py-2 rounded-lg font-medium text-sm tap-target transition-colors ${
                       skinValue === v ? 'bg-masters-green text-white' : 'bg-rough dark:bg-night-border'
                     }`}
                   >
@@ -197,7 +199,7 @@ export function NewRoundPage() {
                   <button
                     key={v}
                     onClick={() => setNassauBet(v)}
-                    className={`flex-1 py-2 rounded-lg font-medium text-sm tap-target ${
+                    className={`flex-1 py-2 rounded-lg font-medium text-sm tap-target transition-colors ${
                       nassauBet === v ? 'bg-masters-green text-white' : 'bg-rough dark:bg-night-border'
                     }`}
                   >
@@ -209,13 +211,30 @@ export function NewRoundPage() {
           )}
 
           <div className="flex gap-3">
-            <Button variant="ghost" onClick={() => setStep('players')} className="flex-1">
+            <Button variant="ghost" onClick={() => setStep('course')} className="flex-1">
               Back
             </Button>
-            <Button onClick={handleStart} disabled={selectedGames.size === 0} className="flex-1">
-              Start Round ⛳
+            <Button
+              onClick={handleStart}
+              disabled={selectedGames.size === 0 || creating}
+              className="flex-1"
+            >
+              {creating ? (
+                <span className="flex items-center gap-2">
+                  <Spinner />
+                  Creating...
+                </span>
+              ) : (
+                'Start Round'
+              )}
             </Button>
           </div>
+
+          {!user && (
+            <p className="text-xs text-center text-gray-500">
+              Not signed in — you'll be taken to the demo round.
+            </p>
+          )}
         </div>
       )}
     </div>

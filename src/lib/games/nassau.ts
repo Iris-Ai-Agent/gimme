@@ -4,33 +4,29 @@ export interface NassauConfig {
   frontBet: number
   backBet: number
   overallBet: number
-  autoPress: boolean
-  autoPressThreshold: number
   useHandicap: boolean
 }
 
 interface MatchState {
   scores: Map<string, number>
-  presses: { startHole: number; scores: Map<string, number> }[]
 }
 
 export interface NassauResult {
   front: Map<string, number>
   back: Map<string, number>
   overall: Map<string, number>
-  presses: { startHole: number; payouts: Map<string, number> }[]
   totalPayouts: Map<string, number>
 }
 
 function matchPlayHoleWinner(
-  scores: Map<string, Score[]>,
+  indexed: Map<string, Map<number, Score>>,
   hole: number,
 ): string | null {
   let bestScore = Infinity
   let bestPlayers: string[] = []
 
-  scores.forEach((playerScores, playerId) => {
-    const holeScore = playerScores.find((s) => s.hole_number === hole)
+  indexed.forEach((holeMap, playerId) => {
+    const holeScore = holeMap.get(hole)
     if (!holeScore) return
     if (holeScore.strokes < bestScore) {
       bestScore = holeScore.strokes
@@ -68,9 +64,19 @@ export function calculateNassau(
   scores: Map<string, Score[]>,
   config: NassauConfig,
 ): NassauResult {
-  const front: MatchState = { scores: new Map(), presses: [] }
-  const back: MatchState = { scores: new Map(), presses: [] }
-  const overall: MatchState = { scores: new Map(), presses: [] }
+  const front: MatchState = { scores: new Map() }
+  const back: MatchState = { scores: new Map() }
+  const overall: MatchState = { scores: new Map() }
+
+  // Pre-index scores: player -> hole -> Score for O(1) lookups
+  const indexed = new Map<string, Map<number, Score>>()
+  scores.forEach((playerScores, playerId) => {
+    const holeMap = new Map<number, Score>()
+    for (const s of playerScores) {
+      holeMap.set(s.hole_number, s)
+    }
+    indexed.set(playerId, holeMap)
+  })
 
   scores.forEach((_, pid) => {
     front.scores.set(pid, 0)
@@ -79,7 +85,7 @@ export function calculateNassau(
   })
 
   for (let hole = 1; hole <= 18; hole++) {
-    const winner = matchPlayHoleWinner(scores, hole)
+    const winner = matchPlayHoleWinner(indexed, hole)
     const isBack = hole > 9
     const matchState = isBack ? back : front
 
@@ -108,7 +114,6 @@ export function calculateNassau(
     front: frontResult,
     back: backResult,
     overall: overallResult,
-    presses: [],
     totalPayouts,
   }
 }

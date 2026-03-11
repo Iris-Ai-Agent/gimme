@@ -4,13 +4,15 @@ export interface Debt {
   amount: number
 }
 
+const CURRENCY_EPSILON = 0.01
+
 export function minimizeTransactions(balances: Map<string, number>): Debt[] {
   const debtors: { id: string; amount: number }[] = []
   const creditors: { id: string; amount: number }[] = []
 
   balances.forEach((amount, id) => {
-    if (amount < -0.01) debtors.push({ id, amount: Math.abs(amount) })
-    else if (amount > 0.01) creditors.push({ id, amount })
+    if (amount < -CURRENCY_EPSILON) debtors.push({ id, amount: Math.abs(amount) })
+    else if (amount > CURRENCY_EPSILON) creditors.push({ id, amount })
   })
 
   debtors.sort((a, b) => b.amount - a.amount)
@@ -22,7 +24,7 @@ export function minimizeTransactions(balances: Map<string, number>): Debt[] {
 
   while (i < debtors.length && j < creditors.length) {
     const transfer = Math.min(debtors[i].amount, creditors[j].amount)
-    if (transfer > 0.01) {
+    if (transfer > CURRENCY_EPSILON) {
       debts.push({
         from: debtors[i].id,
         to: creditors[j].id,
@@ -31,8 +33,8 @@ export function minimizeTransactions(balances: Map<string, number>): Debt[] {
     }
     debtors[i].amount -= transfer
     creditors[j].amount -= transfer
-    if (debtors[i].amount < 0.01) i++
-    if (creditors[j].amount < 0.01) j++
+    if (debtors[i].amount < CURRENCY_EPSILON) i++
+    if (creditors[j].amount < CURRENCY_EPSILON) j++
   }
 
   return debts

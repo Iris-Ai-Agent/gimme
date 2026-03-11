@@ -1,129 +1,230 @@
 import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
-import type { Round, Score, Game, GameResult, RoundPlayer, Course } from '@/types/database'
+import { getErrorMessage } from '@/lib/utils'
+import { toast } from '@/components/ui/Toast'
+import { getPendingScores, addPendingScore, removePendingScore } from '@/lib/offline-queue'
+import { useAuth } from './auth'
+import type { Round, Score, Game, GameResult, RoundPlayer, Course, Profile, GameFormat } from '@/types/database'
 
 interface RoundState {
   currentRound: Round | null
   course: Course | null
   players: RoundPlayer[]
+  playerProfiles: Profile[]
   scores: Map<string, Score[]>
   games: Game[]
   results: GameResult[]
   loading: boolean
+  error: string | null
+  pendingCount: number
 
-  createRound: (courseName: string, pars: number[]) => Promise<string>
-  joinRound: (roundId: string) => Promise<void>
+  createRound: (opts: {
+    courseName: string
+    pars: number[]
+    games: Array<{ format: GameFormat; config: Record<string, unknown> }>
+  }) => Promise<string>
+  joinRound: (inviteCode: string) => Promise<string>
   loadRound: (roundId: string) => Promise<void>
   postScore: (profileId: string, holeNumber: number, strokes: number) => Promise<void>
-  addGame: (format: Game['format'], config: Record<string, unknown>) => Promise<void>
   startRound: () => Promise<void>
   completeRound: () => Promise<void>
   subscribeToRound: (roundId: string) => () => void
+  syncPendingScores: () => Promise<void>
+  reset: () => void
 }
 
 export const useRound = create<RoundState>((set, get) => ({
   currentRound: null,
   course: null,
   players: [],
+  playerProfiles: [],
   scores: new Map(),
   games: [],
   results: [],
   loading: false,
+  error: null,
+  pendingCount: getPendingScores().length,
 
-  createRound: async (courseName, pars) => {
-    const { data: course } = await supabase
-      .from('courses')
-      .insert({ name: courseName, holes: pars.length, par: pars, created_by: '' })
-      .select()
-      .single()
+  createRound: async ({ courseName, pars, games: gameDefs }) => {
+    set({ loading: true, error: null })
+    try {
+      const user = useAuth.getState().user
+      if (!user) throw new Error('You must be signed in to create a round')
 
-    if (!course) throw new Error('Failed to create course')
+      // 1. Create course
+      const { data: course, error: courseErr } = await supabase
+        .from('courses')
+        .insert({ name: courseName, holes: pars.length, par: pars, created_by: user.id })
+        .select()
+        .single()
+      if (courseErr || !course) throw new Error(courseErr?.message || 'Failed to create course')
 
-    const { data: round } = await supabase
-      .from('rounds')
-      .insert({ course_id: course.id, created_by: '', status: 'setup' as const })
-      .select()
-      .single()
+      // 2. Create round
+      const { data: round, error: roundErr } = await supabase
+        .from('rounds')
+        .insert({
+          course_id: course.id,
+          created_by: user.id,
+          status: 'active' as const,
+          started_at: new Date().toISOString(),
+        })
+        .select()
+        .single()
+      if (roundErr || !round) throw new Error(roundErr?.message || 'Failed to create round')
 
-    if (!round) throw new Error('Failed to create round')
+      // 3. Add creator as player, games, and fetch profile in parallel
+      const [rpRes, , profileRes] = await Promise.all([
+        supabase
+          .from('round_players')
+          .insert({ round_id: round.id, profile_id: user.id }),
+        gameDefs.length > 0
+          ? supabase.from('games').insert(
+              gameDefs.map(g => ({ round_id: round.id, format: g.format, config: g.config, status: 'active' as const }))
+            )
+          : Promise.resolve({ error: null }),
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single(),
+      ])
+      if (rpRes.error) throw new Error(rpRes.error.message)
+      const creatorProfile = profileRes.data
 
-    set({ currentRound: round, course })
-    return round.id
+      set({
+        currentRound: round,
+        course,
+        players: [{ round_id: round.id, profile_id: user.id, tee_set: null, handicap_at_time: null }],
+        playerProfiles: creatorProfile ? [creatorProfile] : [],
+        scores: new Map(),
+        games: [],
+        results: [],
+        loading: false,
+      })
+
+      return round.id
+    } catch (err) {
+      const msg = getErrorMessage(err, 'Failed to create round')
+      set({ error: msg, loading: false })
+      throw err
+    }
   },
 
-  joinRound: async (roundId) => {
-    await supabase.from('round_players').insert({ round_id: roundId, profile_id: '' })
-    await get().loadRound(roundId)
+  joinRound: async (inviteCode: string) => {
+    set({ loading: true, error: null })
+    try {
+      const user = useAuth.getState().user
+      if (!user) throw new Error('You must be signed in to join a round')
+
+      const { data: roundId, error: rpcErr } = await supabase
+        .rpc('join_round_by_invite_code', { code: inviteCode.trim().toLowerCase() })
+      if (rpcErr || !roundId) throw new Error(rpcErr?.message || 'Round not found. Check the invite code.')
+
+      await get().loadRound(roundId)
+      return roundId
+    } catch (err) {
+      const msg = getErrorMessage(err, 'Failed to join round')
+      set({ error: msg, loading: false })
+      throw err
+    }
   },
 
   loadRound: async (roundId) => {
-    set({ loading: true })
-    const [roundRes, playersRes, scoresRes, gamesRes] = await Promise.all([
-      supabase.from('rounds').select('*').eq('id', roundId).single(),
-      supabase.from('round_players').select('*').eq('round_id', roundId),
-      supabase.from('scores').select('*').eq('round_id', roundId),
-      supabase.from('games').select('*').eq('round_id', roundId),
-    ])
+    set({ loading: true, error: null })
+    try {
+      const [roundRes, playersRes, scoresRes, gamesRes] = await Promise.all([
+        supabase.from('rounds').select('*, courses(*)').eq('id', roundId).single(),
+        supabase.from('round_players').select('round_id, profile_id, tee_set, handicap_at_time').eq('round_id', roundId),
+        supabase.from('scores').select('id, round_id, profile_id, hole_number, strokes, updated_at').eq('round_id', roundId),
+        supabase.from('games').select('id, round_id, format, config, status').eq('round_id', roundId),
+      ])
 
-    const scoreMap = new Map<string, Score[]>()
-    scoresRes.data?.forEach((s) => {
-      const key = s.profile_id
-      const existing = scoreMap.get(key) || []
-      existing.push(s)
-      scoreMap.set(key, existing)
-    })
+      if (roundRes.error) throw new Error(roundRes.error.message)
 
-    if (roundRes.data?.course_id) {
-      const { data: course } = await supabase
-        .from('courses')
-        .select('*')
-        .eq('id', roundRes.data.course_id)
-        .single()
-      set({ course })
+      const scoreMap = new Map<string, Score[]>()
+      scoresRes.data?.forEach((s) => {
+        const existing = scoreMap.get(s.profile_id) || []
+        existing.push(s)
+        scoreMap.set(s.profile_id, existing)
+      })
+
+      // Extract inline course from join, then fetch profiles and game results concurrently
+      const { courses: inlineCourse, ...roundData } = roundRes.data as (Round & { courses: Course | null })
+      const course = inlineCourse || null
+
+      const playerIds = (playersRes.data || []).map((p) => p.profile_id)
+      const gameIds = (gamesRes.data || []).map((g) => g.id)
+
+      const [profilesRes, resultsRes] = await Promise.all([
+        playerIds.length > 0
+          ? supabase.from('profiles').select('id, display_name, avatar_url, handicap_index, venmo_handle, cashapp_handle, created_at').in('id', playerIds)
+          : Promise.resolve({ data: [] as Profile[] }),
+        gameIds.length > 0
+          ? supabase.from('game_results').select('game_id, profile_id, net_amount, details').in('game_id', gameIds)
+          : Promise.resolve({ data: [] as GameResult[] }),
+      ])
+
+      const playerProfiles = (profilesRes.data as Profile[] | null) || []
+      const results = (resultsRes.data as GameResult[] | null) || []
+
+      set({
+        currentRound: roundData,
+        course,
+        players: playersRes.data || [],
+        playerProfiles,
+        scores: scoreMap,
+        games: gamesRes.data || [],
+        results,
+        loading: false,
+      })
+    } catch (err) {
+      const msg = getErrorMessage(err, 'Failed to load round')
+      set({ error: msg, loading: false })
     }
-
-    set({
-      currentRound: roundRes.data,
-      players: playersRes.data || [],
-      scores: scoreMap,
-      games: gamesRes.data || [],
-      loading: false,
-    })
   },
 
   postScore: async (profileId, holeNumber, strokes) => {
     const { currentRound, scores } = get()
     if (!currentRound) return
 
-    const { data } = await supabase
-      .from('scores')
-      .upsert(
-        { round_id: currentRound.id, profile_id: profileId, hole_number: holeNumber, strokes },
-        { onConflict: 'round_id,profile_id,hole_number' }
-      )
-      .select()
-      .single()
-
-    if (data) {
-      const updated = new Map(scores)
-      const playerScores = [...(updated.get(profileId) || [])]
-      const idx = playerScores.findIndex((s) => s.hole_number === holeNumber)
-      if (idx >= 0) playerScores[idx] = data
-      else playerScores.push(data)
-      updated.set(profileId, playerScores)
-      set({ scores: updated })
+    // Optimistic update
+    const updated = new Map(scores)
+    const playerScores = [...(updated.get(profileId) || [])]
+    const optimisticScore: Score = {
+      id: `optimistic-${profileId}-${holeNumber}`,
+      round_id: currentRound.id,
+      profile_id: profileId,
+      hole_number: holeNumber,
+      strokes,
+      updated_at: new Date().toISOString(),
     }
-  },
+    const idx = playerScores.findIndex((s) => s.hole_number === holeNumber)
+    if (idx >= 0) playerScores[idx] = optimisticScore
+    else playerScores.push(optimisticScore)
+    updated.set(profileId, playerScores)
+    set({ scores: updated })
 
-  addGame: async (format, config) => {
-    const { currentRound } = get()
-    if (!currentRound) return
-    const { data } = await supabase
-      .from('games')
-      .insert({ round_id: currentRound.id, format, config, status: 'active' as const })
-      .select()
-      .single()
-    if (data) set({ games: [...get().games, data] })
+    try {
+      const { error } = await supabase.rpc('post_score', {
+        p_round_id: currentRound.id,
+        p_profile_id: profileId,
+        p_hole_number: holeNumber,
+        p_strokes: strokes,
+      })
+
+      if (error) throw error
+    } catch {
+      // Network or server failure — save to offline queue, keep optimistic state
+      addPendingScore({
+        roundId: currentRound.id,
+        profileId,
+        holeNumber,
+        strokes,
+        timestamp: Date.now(),
+      })
+      set({ pendingCount: getPendingScores().length })
+      toast('info', 'Score saved offline \u2014 will sync when connected')
+    }
   },
 
   startRound: async () => {
@@ -151,11 +252,17 @@ export const useRound = create<RoundState>((set, get) => ({
   },
 
   subscribeToRound: (roundId) => {
+    const currentUserId = useAuth.getState().user?.id ?? null
+
+    let reconnectAttempts = 0
+    const MAX_RECONNECT_ATTEMPTS = 3
+
     const channel = supabase
       .channel(`round:${roundId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'scores', filter: `round_id=eq.${roundId}` },
         (payload) => {
           const score = payload.new as Score
+          if (score.profile_id === currentUserId) return
           const { scores } = get()
           const updated = new Map(scores)
           const playerScores = [...(updated.get(score.profile_id) || [])]
@@ -166,8 +273,54 @@ export const useRound = create<RoundState>((set, get) => ({
           set({ scores: updated })
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          reconnectAttempts++
+          if (reconnectAttempts <= MAX_RECONNECT_ATTEMPTS) {
+            // Reconcile state on reconnection by reloading round data
+            get().loadRound(roundId)
+          }
+        } else if (status === 'SUBSCRIBED') {
+          // Reset counter on successful subscription
+          if (reconnectAttempts > 0) {
+            // Reconcile state after reconnection
+            get().loadRound(roundId)
+          }
+          reconnectAttempts = 0
+        }
+      })
 
     return () => { supabase.removeChannel(channel) }
+  },
+
+  syncPendingScores: async () => {
+    if (!navigator.onLine) return
+    const pending = getPendingScores()
+    if (!pending.length) return
+    for (const score of pending) {
+      const { error } = await supabase.from('scores').upsert({
+        round_id: score.roundId,
+        profile_id: score.profileId,
+        hole_number: score.holeNumber,
+        strokes: score.strokes,
+      }, { onConflict: 'round_id,profile_id,hole_number' })
+      if (!error) removePendingScore(score)
+    }
+    set({ pendingCount: getPendingScores().length })
+  },
+
+  reset: () => {
+    set({
+      currentRound: null,
+      course: null,
+      players: [],
+      playerProfiles: [],
+      scores: new Map(),
+      games: [],
+      results: [],
+      loading: false,
+      error: null,
+      pendingCount: 0,
+    })
   },
 }))
