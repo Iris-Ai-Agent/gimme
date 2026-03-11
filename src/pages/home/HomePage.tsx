@@ -59,6 +59,27 @@ export function HomePage() {
         </div>
       </div>
 
+      {/* Banner */}
+      {user ? (
+        <div className="relative w-full h-40 rounded-2xl overflow-hidden mb-6">
+          <img src="/images/banner.webp" alt="" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+          <div className="absolute bottom-4 left-4">
+            <p className="text-white font-bold text-lg drop-shadow">Ready to play?</p>
+            <p className="text-white/70 text-sm drop-shadow">Start a round or join one.</p>
+          </div>
+        </div>
+      ) : !authLoading ? (
+        <div className="relative w-full h-40 rounded-2xl overflow-hidden mb-6">
+          <img src="/images/banner.webp" alt="" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+          <div className="absolute bottom-4 left-4">
+            <p className="text-white font-bold text-lg drop-shadow">Sign in to start playing</p>
+            <p className="text-white/70 text-sm drop-shadow">Track rounds, stats, and settle up.</p>
+          </div>
+        </div>
+      ) : null}
+
       {/* Main CTA */}
       <Button
         size="lg"

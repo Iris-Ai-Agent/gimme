@@ -109,7 +109,13 @@ export function SettlePage() {
 
   return (
     <div className="px-4 pt-6 pb-4 max-w-lg mx-auto space-y-6 animate-fade-in">
-      <h1 className="text-xl font-bold">Settle Up</h1>
+      <div className="relative w-full h-32 rounded-2xl overflow-hidden mb-4">
+        <img src="/images/skins.webp" alt="" className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+        <div className="absolute bottom-3 left-4">
+          <p className="text-white font-bold drop-shadow">Settle Up</p>
+        </div>
+      </div>
 
       {settlements.length === 0 ? (
         <EmptyState

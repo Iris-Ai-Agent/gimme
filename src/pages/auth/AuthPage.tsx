@@ -60,11 +60,15 @@ export function AuthPage() {
   }
 
   return (
-    <div className="min-h-dvh flex items-center justify-center px-4 animate-fade-in safe-top">
+    <div className="min-h-dvh flex flex-col items-center justify-center px-4 animate-fade-in safe-top">
       <div className="w-full max-w-sm space-y-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-masters-green dark:text-gold">Gimme</h1>
-          <p className="text-gray-500 mt-2">Score side games. Settle up.</p>
+        <div className="relative w-full h-56 overflow-hidden rounded-2xl">
+          <img src="/images/hero.webp" alt="" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-fairway dark:to-night" />
+          <div className="absolute inset-0 flex flex-col items-center justify-end pb-6">
+            <h1 className="text-4xl font-bold text-white drop-shadow-lg">Gimme</h1>
+            <p className="text-white/80 text-sm mt-1 drop-shadow">Golf side games, settled.</p>
+          </div>
         </div>
 
         <div className="space-y-4">

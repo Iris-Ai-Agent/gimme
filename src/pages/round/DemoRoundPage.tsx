@@ -97,6 +97,13 @@ export function DemoRoundPage() {
 
   return (
     <div className="px-4 pt-6 pb-24 max-w-lg mx-auto space-y-4 safe-top animate-fade-in">
+      <div className="relative w-full h-24 overflow-hidden rounded-b-2xl mb-4">
+        <img src="/images/hero.webp" alt="" className="w-full h-full object-cover object-center" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-fairway dark:to-night" />
+        <div className="absolute bottom-2 left-4">
+          <p className="text-white font-bold text-sm drop-shadow">Demo Round</p>
+        </div>
+      </div>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <BackButton />

@@ -20,6 +20,7 @@ export default defineConfig({
         orientation: 'portrait',
         icons: [
           { src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml' },
+          { src: '/images/icon-512.webp', sizes: '512x512', type: 'image/webp', purpose: 'any' },
         ],
       },
       workbox: {
