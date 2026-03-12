@@ -41,7 +41,7 @@ export function RoundPage() {
   const { user } = useAuth()
   const {
     currentRound, course, players, playerProfiles, scores, games,
-    loading, error, loadRound, postScore, completeRound, subscribeToRound, reset,
+    loading, error, loadRound, postScore, completeRound, subscribeToRound, syncPendingScores, reset,
   } = useRound()
 
   const [currentHole, setCurrentHole] = useState(1)
@@ -58,6 +58,7 @@ export function RoundPage() {
 
   useEffect(() => {
     if (roundId) {
+      syncPendingScores()
       loadRound(roundId)
       const unsub = subscribeToRound(roundId)
       return () => {

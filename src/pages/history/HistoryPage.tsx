@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db as supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/Button'
@@ -7,12 +7,15 @@ import { PageSkeleton } from '@/components/ui/Skeleton'
 import { useAuth } from '@/stores/auth'
 import { FORMAT_LABELS, type RoundWithGames } from '@/types/database'
 
+type FilterTab = 'all' | 'active' | 'complete'
+
 export function HistoryPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const [rounds, setRounds] = useState<RoundWithGames[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [filter, setFilter] = useState<FilterTab>('all')
 
   useEffect(() => {
     if (!user) {
@@ -45,6 +48,13 @@ export function HistoryPage() {
     }
     fetchRounds()
   }, [user])
+
+  const activeCount = useMemo(() => rounds.filter((r) => r.status === 'active').length, [rounds])
+  const completeCount = useMemo(() => rounds.filter((r) => r.status === 'complete').length, [rounds])
+
+  const filteredRounds = useMemo(() =>
+    filter === 'all' ? rounds : rounds.filter((r) => r.status === filter),
+  [rounds, filter])
 
   if (loading) return <PageSkeleton />
 
@@ -97,6 +107,45 @@ export function HistoryPage() {
         </button>
       </div>
 
+      {/* Stats bar */}
+      {rounds.length > 0 && (
+        <div className="flex gap-4 px-4 py-3 justify-center" style={{ backgroundColor: '#FFFFFF', borderBottom: '1px solid #E8E3DA' }}>
+          <div className="text-center">
+            <p className="text-xl font-bold" style={{ color: '#2D4A3E' }}>{rounds.length}</p>
+            <p className="text-[10px] uppercase tracking-wider font-medium" style={{ color: '#8a8578' }}>Rounds</p>
+          </div>
+          <div className="w-px" style={{ backgroundColor: '#E8E3DA' }} />
+          <div className="text-center">
+            <p className="text-xl font-bold" style={{ color: '#C4A962' }}>{activeCount}</p>
+            <p className="text-[10px] uppercase tracking-wider font-medium" style={{ color: '#8a8578' }}>Live</p>
+          </div>
+          <div className="w-px" style={{ backgroundColor: '#E8E3DA' }} />
+          <div className="text-center">
+            <p className="text-xl font-bold" style={{ color: '#2D4A3E' }}>{completeCount}</p>
+            <p className="text-[10px] uppercase tracking-wider font-medium" style={{ color: '#8a8578' }}>Complete</p>
+          </div>
+        </div>
+      )}
+
+      {/* Filter tabs */}
+      {rounds.length > 0 && (
+        <div className="flex px-4 pt-3 gap-2">
+          {(['all', 'active', 'complete'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setFilter(tab)}
+              className="px-3 py-1.5 rounded-full text-xs font-medium tap-target transition-all"
+              style={{
+                backgroundColor: filter === tab ? '#2D4A3E' : '#2D4A3E10',
+                color: filter === tab ? '#F5F0E8' : '#2D4A3E',
+              }}
+            >
+              {tab === 'all' ? `All (${rounds.length})` : tab === 'active' ? `Live (${activeCount})` : `Complete (${completeCount})`}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="px-4 pt-3 pb-4 max-w-lg mx-auto w-full space-y-3">
         {rounds.length === 0 ? (
           <EmptyState
@@ -106,36 +155,50 @@ export function HistoryPage() {
             actionLabel="Start a Round"
             onAction={() => navigate('/round/new')}
           />
+        ) : filteredRounds.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-sm" style={{ color: '#8a8578' }}>No {filter} rounds</p>
+          </div>
         ) : (
           <div className="space-y-2">
-            {rounds.map((round) => (
+            {filteredRounds.map((round) => (
               <button
                 key={round.id}
                 className="w-full bg-white rounded-xl px-3 py-3 text-left
                   transition-all active:scale-[0.98]
                   focus-visible:ring-2 focus-visible:ring-[#2D4A3E]"
-                style={{ border: '1px solid #e8e3da' }}
+                style={{ border: `1px solid ${round.status === 'active' ? '#C4A96240' : '#e8e3da'}` }}
                 onClick={() => navigate(`/round/${round.id}`)}
               >
                 <div className="flex items-center gap-3">
                   <div
                     className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: '#2D4A3E' }}
+                    style={{ backgroundColor: round.status === 'active' ? '#C4A962' : '#2D4A3E' }}
                   >
-                    <span className="text-lg leading-none">⛳</span>
+                    <span className="text-lg leading-none">{round.status === 'active' ? '🔴' : '⛳'}</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-sm truncate" style={{ color: '#2D4A3E' }}>
                       {round.courses?.name || 'Unknown Course'}
                     </h3>
                     <p className="text-xs mt-0.5" style={{ color: '#8a8578' }}>
-                      {round.status === 'active' ? 'In Progress' : 'Complete'}
-                      {round.games && round.games.length > 0 && ` · ${round.games.map((g) => FORMAT_LABELS[g.format] || g.format).join(', ')}`}
+                      {round.games && round.games.length > 0
+                        ? round.games.map((g) => FORMAT_LABELS[g.format] || g.format).join(', ')
+                        : 'No games'}
+                      {' · '}{round.courses?.holes || '?'} holes
                     </p>
                   </div>
-                  <span className="text-sm font-bold flex-shrink-0" style={{ color: round.status === 'active' ? '#C4A962' : '#8a8578' }}>
-                    {round.status === 'active' ? 'Live' : new Date(round.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </span>
+                  <div className="text-right flex-shrink-0">
+                    {round.status === 'active' ? (
+                      <span className="text-xs font-bold px-2 py-1 rounded-full" style={{ backgroundColor: '#C4A96220', color: '#C4A962' }}>
+                        Live
+                      </span>
+                    ) : (
+                      <span className="text-xs font-medium" style={{ color: '#8a8578' }}>
+                        {new Date(round.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </button>
             ))}

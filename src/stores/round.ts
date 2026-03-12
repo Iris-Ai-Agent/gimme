@@ -305,6 +305,7 @@ export const useRound = create<RoundState>((set, get) => ({
     if (!navigator.onLine) return
     const pending = getPendingScores()
     if (!pending.length) return
+    let synced = 0
     for (const score of pending) {
       const { error } = await (db).from('scores').upsert({
         round_id: score.roundId,
@@ -312,9 +313,16 @@ export const useRound = create<RoundState>((set, get) => ({
         hole_number: score.holeNumber,
         strokes: score.strokes,
       }, { onConflict: 'round_id,profile_id,hole_number' })
-      if (!error) removePendingScore(score)
+      if (!error) {
+        removePendingScore(score)
+        synced++
+      }
     }
-    set({ pendingCount: getPendingScores().length })
+    const remaining = getPendingScores().length
+    set({ pendingCount: remaining })
+    if (synced > 0) {
+      toast('success', `Synced ${synced} offline score${synced > 1 ? 's' : ''}`)
+    }
   },
 
   reset: () => {
