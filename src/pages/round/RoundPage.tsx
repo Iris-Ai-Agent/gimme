@@ -164,9 +164,9 @@ export function RoundPage() {
   }, [gamesByFormat])
 
   const nassauResult = useMemo(() => {
-    if (!gamesByFormat.has('nassau')) return null
-    return calculateNassau(scores, nassauConfig)
-  }, [gamesByFormat, scores, nassauConfig])
+    if (!gamesByFormat.has('nassau') || !course) return null
+    return calculateNassau(scores, nassauConfig, course.holes)
+  }, [gamesByFormat, scores, nassauConfig, course])
 
   const wolfResult = useMemo(() => {
     const game = gamesByFormat.get('wolf')

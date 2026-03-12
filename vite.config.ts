@@ -14,7 +14,7 @@ export default defineConfig({
         name: 'Bogey Bookie',
         short_name: 'Bogey Bookie',
         description: 'Your golf bets, settled — score side games and settle up with your crew',
-        theme_color: '#006747',
+        theme_color: '#2D4A3E',
         background_color: '#F5F5F0',
         display: 'standalone',
         orientation: 'portrait',

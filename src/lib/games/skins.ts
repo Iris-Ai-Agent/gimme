@@ -54,8 +54,10 @@ export function calculateSkins(
     }
   }
 
-  const totalWon = Array.from(payouts.values()).reduce((a, b) => a + b, 0)
   const playerCount = scores.size
+  if (playerCount === 0) return { results, payouts }
+
+  const totalWon = Array.from(payouts.values()).reduce((a, b) => a + b, 0)
   const perPlayerCost = totalWon / playerCount
 
   scores.forEach((_, playerId) => {

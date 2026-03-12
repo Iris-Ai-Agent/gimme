@@ -43,8 +43,11 @@ function matchPlayHoleWinner(
 function resolveMatch(state: MatchState, betAmount: number): Map<string, number> {
   const payouts = new Map<string, number>()
   const players = Array.from(state.scores.keys())
+  const playerCount = players.length
 
-  if (players.length === 2) {
+  if (playerCount < 2) return payouts
+
+  if (playerCount === 2) {
     const [a, b] = players
     const diff = (state.scores.get(a) || 0) - (state.scores.get(b) || 0)
     if (diff > 0) {
@@ -57,6 +60,20 @@ function resolveMatch(state: MatchState, betAmount: number): Map<string, number>
       payouts.set(a, 0)
       payouts.set(b, 0)
     }
+  } else {
+    const sorted = players
+      .map((p) => ({ id: p, wins: state.scores.get(p) || 0 }))
+      .sort((a, b) => b.wins - a.wins)
+    const best = sorted[0].wins
+    const worst = sorted[sorted.length - 1].wins
+    if (best === worst) {
+      players.forEach((p) => payouts.set(p, 0))
+    } else {
+      players.forEach((p) => {
+        const rank = sorted.findIndex((s) => s.id === p)
+        payouts.set(p, rank === 0 ? betAmount : rank === sorted.length - 1 ? -betAmount : 0)
+      })
+    }
   }
   return payouts
 }
@@ -64,12 +81,14 @@ function resolveMatch(state: MatchState, betAmount: number): Map<string, number>
 export function calculateNassau(
   scores: Map<string, Score[]>,
   config: NassauConfig,
+  totalHoles = 18,
 ): NassauResult {
   const front: MatchState = { scores: new Map() }
   const back: MatchState = { scores: new Map() }
   const overall: MatchState = { scores: new Map() }
 
   const indexed = indexScoresByPlayerAndHole(scores)
+  const frontEnd = totalHoles <= 9 ? totalHoles : 9
 
   scores.forEach((_, pid) => {
     front.scores.set(pid, 0)
@@ -77,9 +96,9 @@ export function calculateNassau(
     overall.scores.set(pid, 0)
   })
 
-  for (let hole = 1; hole <= 18; hole++) {
+  for (let hole = 1; hole <= totalHoles; hole++) {
     const winner = matchPlayHoleWinner(indexed, hole)
-    const isBack = hole > 9
+    const isBack = hole > frontEnd
     const matchState = isBack ? back : front
 
     if (winner) {

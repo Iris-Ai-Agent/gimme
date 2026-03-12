@@ -238,24 +238,26 @@ export const useRound = create<RoundState>((set, get) => ({
   startRound: async () => {
     const { currentRound } = get()
     if (!currentRound) return
-    const { data } = await (db)
+    const { data, error } = await (db)
       .from('rounds')
       .update({ status: 'active', started_at: new Date().toISOString() })
       .eq('id', currentRound.id)
       .select()
       .single()
+    if (error) throw new Error(error.message)
     if (data) set({ currentRound: data })
   },
 
   completeRound: async () => {
     const { currentRound } = get()
     if (!currentRound) return
-    const { data } = await (db)
+    const { data, error } = await (db)
       .from('rounds')
       .update({ status: 'complete', completed_at: new Date().toISOString() })
       .eq('id', currentRound.id)
       .select()
       .single()
+    if (error) throw new Error(error.message)
     if (data) set({ currentRound: data })
   },
 

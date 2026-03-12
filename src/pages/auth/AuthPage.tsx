@@ -78,7 +78,7 @@ export function AuthPage() {
         <div className="flex-1 flex flex-col items-center px-4 pt-6">
           <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg p-6 space-y-5">
             <h2 className="text-xl font-bold text-center" style={{ color: '#2D4A3E' }}>
-              Sign Up
+              Sign In
             </h2>
 
             <form onSubmit={handleEmail} className="space-y-3">
@@ -104,7 +104,7 @@ export function AuthPage() {
                     <Spinner />
                     Creating...
                   </span>
-                ) : 'Create Account'}
+                ) : 'Continue with Email'}
               </button>
             </form>
 

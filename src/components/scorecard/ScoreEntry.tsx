@@ -8,7 +8,7 @@ interface ScoreEntryProps {
 }
 
 export const ScoreEntry = memo(function ScoreEntry({ par, currentScore, onScore, playerName }: ScoreEntryProps) {
-  const options = Array.from({ length: 8 }, (_, i) => i + 1)
+  const options = Array.from({ length: 12 }, (_, i) => i + 1)
 
   function handleTap(strokes: number) {
     if (navigator.vibrate) navigator.vibrate(10)
