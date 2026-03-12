@@ -22,6 +22,7 @@ interface RoundState {
     courseName: string
     pars: number[]
     games: Array<{ format: GameFormat; config: Record<string, unknown> }>
+    crewId?: string
   }) => Promise<string>
   joinRound: (inviteCode: string) => Promise<string>
   loadRound: (roundId: string) => Promise<void>
@@ -45,7 +46,7 @@ export const useRound = create<RoundState>((set, get) => ({
   error: null,
   pendingCount: getPendingScores().length,
 
-  createRound: async ({ courseName, pars, games: gameDefs }) => {
+  createRound: async ({ courseName, pars, games: gameDefs, crewId }) => {
     set({ loading: true, error: null })
     try {
       const user = useAuth.getState().user
@@ -67,21 +68,22 @@ export const useRound = create<RoundState>((set, get) => ({
         .insert({
           course_id: course.id,
           created_by: user.id,
-          status: 'active',
+          status: 'active' as const,
           started_at: new Date().toISOString(),
+          ...(crewId ? { crew_id: crewId } : {}),
         })
         .select()
         .single()
       if (roundErr || !round) throw new Error(roundErr?.message || 'Failed to create round')
 
       // 3. Add creator as player, games, and fetch profile in parallel
-      const [rpRes, , profileRes] = await Promise.all([
+      const [rpRes, gamesRes, profileRes] = await Promise.all([
         db
           .from('round_players')
           .insert({ round_id: round.id, profile_id: user.id }),
         gameDefs.length > 0
           ? db.from('games').insert(
-              gameDefs.map((g: any) => ({ round_id: round.id, format: g.format, config: g.config, status: 'active' }))
+              gameDefs.map((g) => ({ round_id: round.id, format: g.format, config: g.config, status: 'active' }))
             )
           : Promise.resolve({ error: null }),
         db
@@ -91,6 +93,7 @@ export const useRound = create<RoundState>((set, get) => ({
           .single(),
       ])
       if (rpRes.error) throw new Error(rpRes.error.message)
+      if (gamesRes.error) throw new Error(gamesRes.error.message)
       const creatorProfile = profileRes.data
 
       set({

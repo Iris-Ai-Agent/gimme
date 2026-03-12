@@ -5,6 +5,7 @@ import { Scorecard } from '@/components/scorecard/Scorecard'
 import { HoleSelector } from '@/components/scorecard/HoleSelector'
 import { PlayerTabs } from '@/components/scorecard/PlayerTabs'
 import { SkinsResultCard } from '@/components/scorecard/SkinsResultCard'
+import { NassauResultCard, WolfResultCard, BBBResultCard } from '@/components/scorecard/GameResultCards'
 import { NetPositionCard } from '@/components/scorecard/NetPositionCard'
 import { SettleUpCard } from '@/components/scorecard/SettleUpCard'
 import { BackButton } from '@/components/ui/BackButton'
@@ -23,6 +24,16 @@ import { getErrorMessage } from '@/lib/utils'
 import { useRound } from '@/stores/round'
 import { useAuth } from '@/stores/auth'
 import { useSwipe } from '@/hooks/useSwipe'
+import { FORMAT_LABELS } from '@/types/database'
+import type { Game } from '@/types/database'
+
+function getGameConfig(game: Game | undefined) {
+  return (game?.config ?? {}) as Record<string, unknown>
+}
+
+function num(val: unknown, fallback: number): number {
+  return typeof val === 'number' ? val : fallback
+}
 
 export function RoundPage() {
   const { roundId } = useParams<{ roundId: string }>()
@@ -134,37 +145,38 @@ export function RoundPage() {
   const skinsResult = useMemo(() => {
     const game = gamesByFormat.get('skins')
     if (!game || !course) return null
-    const c = game.config as Record<string, unknown>
+    const c = getGameConfig(game)
     return calculateSkins(scores, {
-      skinValue: (c.skinValue as number) || 5,
+      skinValue: num(c.skinValue, 5),
       carryover: (c.carryover as boolean) ?? true,
     }, course.holes)
   }, [gamesByFormat, scores, course])
 
-  const nassauResult = useMemo(() => {
-    const game = gamesByFormat.get('nassau')
-    if (!game) return null
-    const c = game.config as Record<string, unknown>
-    return calculateNassau(scores, {
-      frontBet: (c.frontBet as number) || 5,
-      backBet: (c.backBet as number) || 5,
-      overallBet: (c.overallBet as number) || 5,
+  const nassauConfig = useMemo(() => {
+    const c = getGameConfig(gamesByFormat.get('nassau'))
+    return {
+      frontBet: num(c.frontBet, 5),
+      backBet: num(c.backBet, 5),
+      overallBet: num(c.overallBet, 5),
       useHandicap: false,
-    })
-  }, [gamesByFormat, scores])
+    }
+  }, [gamesByFormat])
+
+  const nassauResult = useMemo(() => {
+    if (!gamesByFormat.has('nassau')) return null
+    return calculateNassau(scores, nassauConfig)
+  }, [gamesByFormat, scores, nassauConfig])
 
   const wolfResult = useMemo(() => {
     const game = gamesByFormat.get('wolf')
     if (!game || !course) return null
-    const c = game.config as Record<string, unknown>
-    return calculateWolf(scores, { pointValue: (c.pointValue as number) || 5 }, course.holes)
+    return calculateWolf(scores, { pointValue: num(getGameConfig(game).pointValue, 5) }, course.holes)
   }, [gamesByFormat, scores, course])
 
   const bbbResult = useMemo(() => {
     const game = gamesByFormat.get('bingo_bango_bongo')
     if (!game || !course) return null
-    const c = game.config as Record<string, unknown>
-    return calculateBBB(scores, { pointValue: (c.pointValue as number) || 1 }, course.holes)
+    return calculateBBB(scores, { pointValue: num(getGameConfig(game).pointValue, 1) }, course.holes)
   }, [gamesByFormat, scores, course])
 
   const combinedPayouts = useMemo(() => {
@@ -254,7 +266,7 @@ export function RoundPage() {
             <h1 className="text-base font-bold text-[#F5F0E8]">{course.name}</h1>
             <p className="text-xs text-[#F5F0E8]/60">
               Hole {currentHole} · Par {course.par[currentHole - 1]}
-              {gamesByFormat.has('skins') && ` · $${((gamesByFormat.get('skins')!.config as Record<string, unknown>).skinValue as number) || 5} Skins`}
+              {games.length > 0 && ` · ${games.map((g) => FORMAT_LABELS[g.format] || g.format).join(', ')}`}
             </p>
           </div>
         </div>
@@ -328,7 +340,31 @@ export function RoundPage() {
             {skinsResult && skinsResult.results.filter((r) => r.winner).length > 0 && (
               <SkinsResultCard
                 results={skinsResult.results}
-                skinValue={((gamesByFormat.get('skins')?.config as Record<string, unknown>)?.skinValue as number) || 5}
+                skinValue={num(getGameConfig(gamesByFormat.get('skins')).skinValue, 5)}
+                playerName={playerName}
+              />
+            )}
+
+            {nassauResult && (
+              <NassauResultCard
+                result={nassauResult}
+                config={nassauConfig}
+                playerName={playerName}
+              />
+            )}
+
+            {wolfResult && wolfResult.results.filter((r) => r.winner).length > 0 && (
+              <WolfResultCard
+                results={wolfResult.results}
+                pointValue={num(getGameConfig(gamesByFormat.get('wolf')).pointValue, 5)}
+                playerName={playerName}
+              />
+            )}
+
+            {bbbResult && bbbResult.results.length > 0 && (
+              <BBBResultCard
+                results={bbbResult.results}
+                pointValue={num(getGameConfig(gamesByFormat.get('bingo_bango_bongo')).pointValue, 1)}
                 playerName={playerName}
               />
             )}

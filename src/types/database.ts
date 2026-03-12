@@ -82,6 +82,17 @@ export interface RoundWithCourse extends Round {
   courses: Course
 }
 
+export interface RoundWithGames extends RoundWithCourse {
+  games?: { format: GameFormat }[]
+}
+
+export const FORMAT_LABELS: Record<GameFormat, string> = {
+  skins: 'Skins',
+  nassau: 'Nassau',
+  wolf: 'Wolf',
+  bingo_bango_bongo: 'BBB',
+}
+
 export interface Settlement {
   id: string
   round_id: string

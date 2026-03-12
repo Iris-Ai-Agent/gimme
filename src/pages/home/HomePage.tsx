@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button'
 import { toast } from '@/components/ui/Toast'
 import { useAuth } from '@/stores/auth'
 import { db as supabase } from '@/lib/supabase'
-import type { RoundWithCourse } from '@/types/database'
+import { FORMAT_LABELS, type RoundWithGames } from '@/types/database'
 
 function ChevronRightIcon({ className = '', style }: { className?: string; style?: React.CSSProperties }) {
   return (
@@ -17,7 +17,7 @@ function ChevronRightIcon({ className = '', style }: { className?: string; style
 export function HomePage() {
   const navigate = useNavigate()
   const { user, profile, loading: authLoading, isDemo, signInAsDemo } = useAuth()
-  const [activeRounds, setActiveRounds] = useState<RoundWithCourse[]>([])
+  const [activeRounds, setActiveRounds] = useState<RoundWithGames[]>([])
   const [error, setError] = useState<string | null>(null)
 
   const fetchRounds = useCallback(() => {
@@ -26,7 +26,7 @@ export function HomePage() {
     setError(null)
     supabase
       .from('rounds')
-      .select('id, status, created_at, courses(name, holes), round_players!inner(profile_id)')
+      .select('id, status, created_at, courses(name, holes), round_players!inner(profile_id), games(format)')
       .eq('round_players.profile_id', user.id)
       .in('status', ['setup', 'active'])
       .order('created_at', { ascending: false })
@@ -121,7 +121,9 @@ export function HomePage() {
               >
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-base truncate" style={{ color: '#2D4A3E' }}>
-                    Skins: at {round.courses?.name || 'Unknown Course'}
+                    {round.games && round.games.length > 0
+                      ? round.games.map((g) => FORMAT_LABELS[g.format] || g.format).join(', ')
+                      : 'Game'}: at {round.courses?.name || 'Unknown Course'}
                   </p>
                   <p className="text-xs mt-0.5" style={{ color: '#2D4A3E', opacity: 0.5 }}>
                     {round.status === 'active' ? 'In progress' : 'Setting up'}

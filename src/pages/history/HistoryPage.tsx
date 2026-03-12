@@ -5,12 +5,12 @@ import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { PageSkeleton } from '@/components/ui/Skeleton'
 import { useAuth } from '@/stores/auth'
-import type { RoundWithCourse } from '@/types/database'
+import { FORMAT_LABELS, type RoundWithGames } from '@/types/database'
 
 export function HistoryPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const [rounds, setRounds] = useState<RoundWithCourse[]>([])
+  const [rounds, setRounds] = useState<RoundWithGames[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -25,7 +25,7 @@ export function HistoryPage() {
         setError(null)
         const { data, error: fetchError } = await supabase
           .from('rounds')
-          .select('id, status, created_at, courses(name, holes), round_players!inner(profile_id)')
+          .select('id, status, created_at, courses(name, holes), round_players!inner(profile_id), games(format)')
           .eq('round_players.profile_id', user!.id)
           .in('status', ['active', 'complete'])
           .order('created_at', { ascending: false })
@@ -129,11 +129,12 @@ export function HistoryPage() {
                       {round.courses?.name || 'Unknown Course'}
                     </h3>
                     <p className="text-xs mt-0.5" style={{ color: '#8a8578' }}>
-                      {round.status === 'active' ? 'In Progress' : 'Complete'} · Skins
+                      {round.status === 'active' ? 'In Progress' : 'Complete'}
+                      {round.games && round.games.length > 0 && ` · ${round.games.map((g) => FORMAT_LABELS[g.format] || g.format).join(', ')}`}
                     </p>
                   </div>
-                  <span className="text-sm font-bold flex-shrink-0" style={{ color: round.status === 'active' ? '#C4A962' : '#2D4A3E' }}>
-                    {round.status === 'active' ? 'Live' : '+$0'}
+                  <span className="text-sm font-bold flex-shrink-0" style={{ color: round.status === 'active' ? '#C4A962' : '#8a8578' }}>
+                    {round.status === 'active' ? 'Live' : new Date(round.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </span>
                 </div>
               </button>
